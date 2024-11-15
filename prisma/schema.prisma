@@ -1,0 +1,120 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+// npx prisma migrate dev --name init
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Priority {
+  low
+  medium
+  high
+}
+
+model User {
+  id             String         @id @default(cuid())
+  firstName      String
+  lastName       String
+  email          String         @unique
+  isAdmin        Boolean        @default(false)
+  isDeleted      Boolean        @default(false)
+  password       String         @default("Welcome1!")
+  createdAt      DateTime       @default(now())
+  boards         Board[]
+  myTasks        Task[]         @relation("AssignedTasks")
+  updatedTasks   Task[]         @relation("UpdatedTasks")
+  isLogin        Boolean?
+  lastLogin      DateTime?
+  roles          String[]
+  profileImage   String?
+  collaborations Collaborator[]
+  clinics        Clinic[]
+}
+
+model Clinic {
+  id        String   @id @default(cuid())
+  createdBy String
+  name      String
+  address   String
+  createdAt DateTime @default(now())
+  users     User[]
+  tasks     Task[]
+}
+
+model Board {
+  id          String        @id @default(cuid())
+  createdBy   String
+  name        String
+  color       String
+  icon        String?
+  createdAt   DateTime      @default(now())
+  users       User[]
+  BoardStatus BoardStatus[] @relation("BoardStatuses")
+  Automations Automations[] @relation("BoardAutomations")
+}
+
+model BoardStatus {
+  id        String   @id @default(cuid())
+  createdBy String
+  createdAt DateTime @default(now())
+  name      String
+  board     Board    @relation("BoardStatuses", fields: [boardId], references: [id])
+  boardId   String
+  position  Int
+  tasks     Task[]   @relation("TaskStatus")
+}
+
+model Task {
+  id           String         @id @default(cuid())
+  name         String
+  taskLink     String?        @default("")
+  description  String?
+  status       BoardStatus    @relation("TaskStatus", fields: [statusId], references: [id]) // Using BoardStatus for task status
+  statusId     String // Foreign key to the BoardStatus
+  priority     String         @default("low") // 'Low', 'Medium', 'High', etc.
+  dueDate      DateTime?
+  createdBy    String
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  assignedTo   User?          @relation("AssignedTasks", fields: [assigneeId], references: [id])
+  assigneeId   String? // User to whom the task is assigned
+  updatedBy    User?          @relation("UpdatedTasks", fields: [updatedById], references: [id])
+  updatedById  String? // User who last updated the task
+  parent       Task?          @relation("Subtasks", fields: [parentId], references: [id]) // Parent task (for subtasks)
+  parentId     String? // Foreign key to parent task
+  subtasks     Task[]         @relation("Subtasks") // Subtasks
+  collaborator Collaborator[]
+  clinics      Clinic[]
+}
+
+model Collaborator {
+  id     String @id @default(cuid())
+  role   String // Define roles like "owner", "editor", "viewer"
+  user   User   @relation(fields: [userId], references: [id])
+  userId String
+  task   Task   @relation(fields: [taskId], references: [id])
+  taskId String
+
+  @@unique([userId, taskId]) // Ensure a user can have only one role per board
+}
+
+model Automations {
+  id        String   @id @default(cuid())
+  name      String
+  board     Board    @relation("BoardAutomations", fields: [boardId], references: [id])
+  boardId   String
+  triggers  Json?
+  actions   Json?
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+}

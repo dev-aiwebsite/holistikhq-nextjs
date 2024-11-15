@@ -17,10 +17,12 @@
         "name": "next"
       }
     ],
+    "baseUrl": ".", // Set the base URL to the root of the project
     "paths": {
-      "@/*": ["./src/*"]
-    }
+      "@app/*": ["src/app/*"],
+      "@lib/*": ["src/lib/*"],
+    },
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "src/app/components/dndComponents/KanbanBoard.bck"],
   "exclude": ["node_modules"]
 }

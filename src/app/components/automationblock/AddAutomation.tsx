@@ -14,7 +14,7 @@ import { Button } from "../ui/button";
 import { ChangeEvent, useState } from "react";
 import ActionCard from "./ActionCard";
 import { _addAutomation } from "@lib/server_actions/database_crud";
-import { AutomationActionType, AutomationTriggerType, AutomationType, TypeBoardWithStatus } from "@lib/types";
+import { AutomationActionType, AutomationTriggerType, AutomationType, TypeBoardComplete } from "@lib/types";
 import { createId } from "@paralleldrive/cuid2";
 
 type AddAutomationProps = {
@@ -30,7 +30,7 @@ const AddAutomation = ({ boardId, onOpenChange }: AddAutomationProps) => {
     const [automationData, setAutomationData] = useState<AutomationType>({
         id: automationId,
         name: "",
-        board: board as TypeBoardWithStatus,
+        board: board as TypeBoardComplete,
         boardId,
         triggers: [] as AutomationTriggerType[],
         actions: [] as AutomationActionType[],

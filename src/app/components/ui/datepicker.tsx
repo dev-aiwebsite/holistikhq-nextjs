@@ -1,6 +1,5 @@
 "use client"
 
-import * as React from "react"
 import { addDays, format } from "date-fns"
 
 import { cn } from "@lib/utils"
@@ -20,6 +19,7 @@ import {
 } from "@app/components/ui/select"
 import { Calendar } from "@app/components/ui/calendar"
 import { Calendar as CalendarIcon } from "lucide-react"
+import { useEffect, useState } from "react"
 
 
 type TypeDatePickerWithPreset = {
@@ -29,7 +29,7 @@ type TypeDatePickerWithPreset = {
   value?: Date
 }
 export function DatePickerWithPresets({variant, className, onSelect, value }:TypeDatePickerWithPreset) {
-  const [date, setDate] = React.useState<Date | undefined>(value);
+  const [date, setDate] = useState<Date | undefined>(value);
 
   function handleOnSelect(date: Date | undefined) {
     setDate(date);
@@ -38,6 +38,10 @@ export function DatePickerWithPresets({variant, className, onSelect, value }:Typ
     }
   }
 
+  useEffect(()=>{
+    if(value == date) return
+    setDate(value)
+  },[value])
 
   return (
     <Popover>

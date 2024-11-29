@@ -104,14 +104,14 @@
   }
 
   .btn-primary {
-    @apply bg-app-orange-500 text-white hover:bg-app-orange-500/90;
+    @apply ring-inset bg-app-orange-500 text-white hover:bg-app-orange-500/90;
   }
   .btn-secondary {
-    @apply border border-app-orange-500 text-app-orange-500 hover:bg-app-orange-500/10;
+    @apply ring-inset ring-1 ring-app-orange-500 text-app-orange-500 hover:bg-app-orange-500/10;
   }
 
   .btn-outlined {
-    @apply border border-current hover:bg-app-orange-500/10 hover:text-app-orange-500;
+    @apply ring-1 ring-current hover:bg-app-orange-500/10 hover:text-app-orange-500;
   }
   .btn.small {
     @apply text-xs py-1.5 px-2;
@@ -146,7 +146,41 @@
     @apply min-w-36;
   }
   
+  .msg_layout {
+    @apply flex flex-row gap-2 p-4;
+  }
+  .message_content_wrapper {
+    @apply flex flex-row gap-2 items-center text-sm;
+  }
+
+  .msg_layout .message_content {
+    @apply py-6 px-8 rounded-[2rem] max-w-[50%]
+  }
+  
+  .msg_layout-received .message_content{
+    @apply bg-app-brown-300 text-app-blue-500;
+  }
+
+  .msg_layout-sent {
+    @apply flex-row-reverse;
+  }
+
+  .msg_layout-sent .message_content{
+    @apply bg-app-blue-300 text-app-blue-500;
+  }
+  
+  .msg_layout-sent .message_content_wrapper {
+    @apply flex-row-reverse;
+  }
+  
+  .icon {
+    @apply w-5 h-5;
+  }
+
 }
+
+ 
+ 
 .sideDrawer {
   width: var(--sideDrawer-width);
 }
@@ -154,6 +188,7 @@
 .board-wrapper {
   justify-content: start;
   max-height: calc(100dvh - var(--header-h) - 10rem);
+  height: calc(100dvh - var(--header-h) - 10rem);
 }
 
 .holistikhq:has(.sideDrawer.shown) .board-wrapper {
@@ -317,4 +352,103 @@
   -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
   height: fit-content;
+}
+
+[chat-widget] .ql-editor {
+  min-height: fit-content;
+}
+
+.header-h {
+  height: var(--header-h);
+}
+
+.max-h-2-header-h {
+  max-height: calc(100dvh - ( var(--header-h) * 2 ) - var(--footer-h));
+}
+
+.max-h-3-header-h {
+  max-height: calc(100dvh - ( var(--header-h) * 3 ) - var(--footer-h));
+  overflow: auto;
+}
+
+.meter {
+  font-size: 0.8em;
+  min-width: 13em;
+  aspect-ratio: 1;
+  padding: min(15%, 2em);
+  isolation: isolate;
+  margin: 10px;
+}
+
+.meter:before {
+  content: "";
+  width: 100%;
+  background: conic-gradient(from 240deg, #2eff2e 60deg, #ffff5c 60deg 180deg, #ff0000 180deg 240deg, transparent 230deg 360deg);
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  z-index: -2;
+}
+
+.meter:after {
+  content: "";
+  width: calc(100% - min(30%, 55px));
+  aspect-ratio: 1;
+  background: #fff;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  translate: -50% -50%;
+  border-radius: 50%;
+  z-index: -1;
+}
+
+.meter .needle {
+  --rotation: -80deg;
+  background-color: #303030;
+  width: 8%;
+  aspect-ratio: 1 / 3;
+  border-radius: 10em;
+  clip-path: polygon(50% 0, 100% 82%, 100% 100%, 0 100%, 0 80%);
+  position: absolute;
+  bottom: 25%;
+  left: 50%;
+  translate: -50%;
+  rotate: var(--rotation);
+  transform-origin: 50% 100%;
+  transition: rotate 1s ease-in-out;
+}
+
+.meter p.count {
+  font-weight: 600;
+  font-size: 1.8em;
+  margin-top: 0.5em;
+}
+
+.meter p {
+  margin: auto;
+  text-align: center;
+}
+
+.meter p.info-text {
+  word-spacing: 50vw;
+}
+
+.custom-select-focused {
+  background: lightblue;
+}
+
+.custom-select-item:hover {
+  background: lightblue;
+  cursor: pointer;
+  
+}
+
+.custom-select-wrapper:not(:focus-within, :hover) .custom-select-list {
+  display: none;
+}
+
+button[disabled] {
+  background: #aaa !important;
+  pointer-events:none !important;
 }

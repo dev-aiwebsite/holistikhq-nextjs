@@ -2,7 +2,7 @@
 import { SortableContext, useSortable } from "@dnd-kit/sortable";
 import { useDndContext, type UniqueIdentifier } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
-import { useEffect, useMemo } from "react";
+import { Dispatch, SetStateAction, useEffect, useMemo } from "react";
 import { cva } from "class-variance-authority";
 import { GripVertical } from "lucide-react";
 import { Button } from "@app/components/dndComponents/ui/button";
@@ -14,8 +14,7 @@ import { BoardStatus, Task } from "@prisma/client";
 import { useDrawerContext } from "@app/context/DrawerContext";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import FormUpdateTask from "../forms/FormUpdateTask";
-import { TypeBoardWithStatus } from "@lib/types";
-
+import { CompleteTaskWithRelations } from "@lib/types";
 
 
 export type Column = BoardStatus
@@ -29,12 +28,12 @@ export interface ColumnDragData {
 
 interface BoardColumnProps {
   column: Column;
-  tasks: Task[];
+  tasks: CompleteTaskWithRelations[];
   isOverlay?: boolean;
 }
 
 export function BoardColumn({ column, tasks, isOverlay }: BoardColumnProps) {
-  const {isOpen, openDrawer, getOnCloseHandlers, addOnCloseHandler} = useDrawerContext()
+  const {isOpen, openDrawer, getOnCloseHandlers, addOnCloseHandler, closeDrawer} = useDrawerContext()
   const router = useRouter()
   const searchParams = useSearchParams();
   const pathname = usePathname()
@@ -84,21 +83,18 @@ export function BoardColumn({ column, tasks, isOverlay }: BoardColumnProps) {
     router.push(`${pathname}`);
   }
 
-  const taskCardClickHandler = (taskId:string)=>{
-    const headerItem = <button type="button" className="btn small btn-outlined text-grey-500">Mark as Complete</button>
-    openDrawer(<FormUpdateTask  key={taskId}  taskId={taskId}/>, headerItem)
-    router.push(`${pathname}?t=${taskId}`);
-    addOnCloseHandler(removeParameterTask)
+  function onUpdateSubmit(newTaskData:CompleteTaskWithRelations){
+    closeDrawer()
   }
 
-  useEffect(()=> {
-    const task = tasks.find(task => task.id == selectedTaskId)
-    if(task){
-      taskCardClickHandler(task.id)
-    }
-  },[])
-
-
+  const taskCardClickHandler = (taskId:string,task?:CompleteTaskWithRelations)=>{
+    const headerItem = <button type="button" className="btn small btn-outlined text-grey-500">Mark as Complete</button>
+  
+    openDrawer(<FormUpdateTask onSubmit={onUpdateSubmit}  key={taskId} task={task}  taskId={taskId}/>, headerItem)
+    router.push(`${pathname}?t=${taskId}`);
+    addOnCloseHandler(removeParameterTask)
+    
+  }
 
 
   return (
@@ -128,7 +124,7 @@ export function BoardColumn({ column, tasks, isOverlay }: BoardColumnProps) {
           <SortableContext  items={tasksIds}>
             {tasks.map((task) => (
               
-              <TaskCard key={task.id} task={task} onClick={() => taskCardClickHandler(task.id)} className="taskCard"/>
+              <TaskCard key={task.id} task={task} onClick={() => taskCardClickHandler(task.id,task)} className="taskCard"/>
               
             ))}
           </SortableContext>

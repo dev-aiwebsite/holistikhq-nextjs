@@ -7,9 +7,10 @@ type TypeTaskNameInput = {
     taskNameValue?: string;
     linkChange?: Function;
     linkValue?: string;
+    required?:boolean;
 }
 
-function TaskNameInput({ taskNameValue, taskNameChange, linkValue, linkChange }: TypeTaskNameInput) {
+function TaskNameInput({required, taskNameValue, taskNameChange, linkValue, linkChange }: TypeTaskNameInput) {
     const [taskName, setTaskName] = useState(taskNameValue || '');
     const [link, setLink] = useState(linkValue || '');
     const [showLinkInput, setShowLinkInput] = useState(false);
@@ -93,10 +94,11 @@ function TaskNameInput({ taskNameValue, taskNameChange, linkValue, linkChange }:
     return (
         <div className="flex items-center gap-2" ref={inputRef}>
             {/* Text input for task name */}
-            <label htmlFor='taskName-main' className="cursor-text group w-72 gap-2 flex flex-row flex-nowrap items-center p-2 border rounded border-gray-200 shadow flex-1 hover:ring-1 focus-within:ring-1 text-2xl w-full !p-2 -m-2 ring-0 border-transparent shadow-none hover:ring-1 ring-app-orange-500/50">
+            <label htmlFor='taskName-main' className="cursor-text group w-full gap-2 flex flex-row flex-nowrap items-center p-2 border rounded border-gray-200 shadow flex-1 hover:ring-1 focus-within:ring-1 text-2xl w-full !p-2 -m-2 ring-0 border-transparent shadow-none hover:ring-1 ring-app-orange-500/50">
                 {!showLinkInput && (
                     <div className="relative">
                         <input
+                            required={required}
                             id="taskName-main"
                             type="text"
                             value={taskName}

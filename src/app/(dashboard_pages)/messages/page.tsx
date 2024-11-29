@@ -1,18 +1,20 @@
 import Chat from "@app/components/chat/Chat";
 
-const ChatPage = () => {
+const MessagesPage = () => {
     return (
         <>
-            <div className="">
+            <div className="header-h">
                 <div className="py-4">
                     <div className="flex flex-row items-center gap-2">
                         <span className="capitalize text-2xl font-bold">Messages</span>
                     </div>
                 </div>
             </div>
-            <Chat />
+            <div className="max-h-2-header-h h-full p-0">
+                <Chat />
+            </div>
         </>
     );
 }
 
-export default ChatPage;
+export default MessagesPage;

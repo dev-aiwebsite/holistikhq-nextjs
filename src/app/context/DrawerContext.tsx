@@ -1,5 +1,5 @@
 "use client";
-import React, { createContext, useContext, useState, ReactNode } from "react";
+import React, { createContext, useContext, useState, ReactNode, useEffect } from "react";
 
 type ContentType = ReactNode;
 type OpenDrawerType = (newContent?: ContentType, newHeaderItems?: ContentType, onClose?: () => void) => void;
@@ -54,6 +54,21 @@ export const DrawerProvider = ({ children }: { children: ReactNode }) => {
     return onCloseHandlers;
   };
 
+  // Add Escape key listener
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && isOpen) {
+        closeDrawer();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen, onCloseHandlers]);
+
   return (
     <DrawerContext.Provider 
       value={{ 
@@ -71,6 +86,7 @@ export const DrawerProvider = ({ children }: { children: ReactNode }) => {
     </DrawerContext.Provider>
   );
 };
+
 
 export const useDrawerContext = () => {
   const context = useContext(DrawerContext);

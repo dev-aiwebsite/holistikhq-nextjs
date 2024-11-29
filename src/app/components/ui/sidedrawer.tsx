@@ -1,9 +1,9 @@
 "use client";
 
-import * as React from "react";
 import { cn } from "@lib/utils"; // Adjust the path as necessary
 import { ArrowRightToLine } from "lucide-react";
 import { useDrawerContext } from "@app/context/DrawerContext";
+import { useEffect, useState } from "react";
 
 interface SideDrawerProps {
     headerItem?:React.ReactNode;
@@ -18,9 +18,9 @@ const SideDrawer: React.FC<SideDrawerProps> = ({children, headerItem,isOpen, onC
     if(!isOpen){
       isOpen = drawerIsOpen
     }
-    const [isShown,setIsShown] = React.useState<boolean | undefined>(isOpen)
-    const [content,setContent] = React.useState(children)
-    const [headerItems,setHeaderItems] = React.useState(headerItem)
+    const [isShown,setIsShown] = useState<boolean | undefined>(isOpen)
+    const [content,setContent] = useState(children)
+    const [headerItems,setHeaderItems] = useState(headerItem)
     
 
     const handleClickOutside = (event) => {
@@ -43,15 +43,15 @@ const SideDrawer: React.FC<SideDrawerProps> = ({children, headerItem,isOpen, onC
     }
 
   
-    React.useEffect(()=> {
+    useEffect(()=> {
       setIsShown(drawerIsOpen)
     },[drawerIsOpen, content])
 
-    React.useEffect(() => {
+    useEffect(() => {
         setHeaderItems(drawerHeaderItems);
     }, [drawerHeaderItems]);
 
-    React.useEffect(() => {
+    useEffect(() => {
       document.addEventListener('click', handleClickOutside);
       return () => {
         document.removeEventListener('click', handleClickOutside);
@@ -59,7 +59,7 @@ const SideDrawer: React.FC<SideDrawerProps> = ({children, headerItem,isOpen, onC
     }, [isShown]);
 
     
-    React.useEffect(() => {
+    useEffect(() => {
         setContent(drawerContent);
     }, [drawerContent]);
     

@@ -1,5 +1,5 @@
 "use client"
-import { useEffect, useMemo, useRef, useState } from "react";
+import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 
@@ -25,9 +25,8 @@ import { coordinateGetter } from "./multipleKeyboard";
 import { TaskCard } from "./TaskCard";
 import { hasDraggableData } from "./utils";
 import { _getBoards, _getTasks, _updateTask } from "@lib/server_actions/database_crud";
-import { Task } from "@prisma/client";
 import { useAppStateContext } from "@app/context/AppStatusContext";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "./ui/button";
 import { ListFilter, Plus, Rows3, Search } from "lucide-react";
 import { Input } from "../ui/input";
@@ -37,17 +36,32 @@ import { BoardIcon, WorkflowIcon } from "public/svgs/svgs";
 import { Toggle } from "../ui/toggle";
 import DialogAutomations from "../dialogs/DialogAutomations";
 import { CompleteTaskWithRelations } from "@lib/types";
+import { DialogAddTask } from "../dialogs/DialogAddTask";
+import { DialogTaskTemplate } from "../dialogs/DialogTaskTemplate";
+import FormUpdateTask from "../forms/FormUpdateTask";
+import { useDrawerContext } from "@app/context/DrawerContext";
+import { Card } from "./ui/card";
+import { CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
+import UserList from "../UserList";
+import { SelectScrollable } from "../ui/select";
 
 export function KanbanBoard({ className, boardId }: { className?: string, boardId: string }) {
   const Router = useRouter()
 
-  const { appState, setappState } = useAppStateContext()
-  const boardData = appState.currentUser.boards.find(board => board.id == boardId)
+  const { appState, setappState, tasks, setTasks, updateTask, boards, setKanbanData } = useAppStateContext()
+  const { isOpen, openDrawer, getOnCloseHandlers, addOnCloseHandler, closeDrawer } = useDrawerContext()
+  const boardData = boards.find(board => board.id == boardId)
   const [columns, setColumns] = useState<Column[]>(boardData?.BoardStatus || []);
-  const [filters,setFilters] = useState({assignee:""})
+  const [filters, setFilters] = useState({
+    search: "",
+    assigneeId: "",
+    statusId: "na",
+    assignedToMe: "",
+  })
+  const searchParams = useSearchParams()
+  const showTaskId = searchParams.get('t')
   const columnsId = columns.map(c => c.id)
-
-  let tasks = appState.tasks
+  const completeStatus = boardData?.BoardStatus?.find(s => s.isComplete)
 
   useEffect(() => {
     let columnsId = columns.map(c => c.id)
@@ -56,25 +70,30 @@ export function KanbanBoard({ className, boardId }: { className?: string, boardI
         in: columnsId
       }
     })
-    .then(res => {
-      if (res.success) {
-        console.log(res, 'kanbanboard getTasks')
-        setappState((prevState) => {
-          const newState = { ...prevState }
-          newState.tasks = res.tasks
-          return newState
-        })
-      }
-    })
+      .then(res => {
+        console.log(res, '_getTask')
+        if (res.success && res.tasks) {
+          setKanbanData({ tasks: res.tasks })
+        }
+      })
+  }, [boardId])
 
-  }, [])
-  console.log(tasks, 'task from kanbanboard')
 
+  useEffect(() => {
+    if (!showTaskId) return
+    if (!tasks) return
+    let task = tasks.find(t => t.id == showTaskId)
+
+    const headerItem = <button type="button" className="btn small btn-outlined text-grey-500">Mark as Complete</button>
+    openDrawer(<FormUpdateTask onSubmit={() => closeDrawer()} key={showTaskId} task={task} taskId={showTaskId} />, headerItem)
+
+  }, [showTaskId, tasks])
+
+  console.log(showTaskId, 'showTaskId')
   const pickedUpTaskColumn = useRef<string | null>(null);
 
-
   const [activeColumn, setActiveColumn] = useState<Column | null>(null);
-
+  const [currentTask, setCurrentTask] = useState<CompleteTaskWithRelations | null>(null);
   const [activeTask, setActiveTask] = useState<CompleteTaskWithRelations | null>(null);
 
   const sensors = useSensors(
@@ -85,6 +104,8 @@ export function KanbanBoard({ className, boardId }: { className?: string, boardI
       coordinateGetter: coordinateGetter
     })
   );
+
+  if (!tasks) return <></>
 
   function getDraggingTaskData(taskId: UniqueIdentifier, columnId: string) {
     const tasksInColumn = tasks?.filter((task) => task.statusId === columnId);
@@ -197,117 +218,201 @@ export function KanbanBoard({ className, boardId }: { className?: string, boardI
     return
   }
 
+  function handleOnSearch(e: ChangeEvent<HTMLInputElement>) {
+    const value = e.target.value
+    console.log(value, 'handle on search')
+
+    updateFilters('search', value)
+  }
+
+  function updateFilters(k: keyof typeof filters, v: string) {
+    setFilters(prevdata => {
+      let newData: Record<string, any> = {}
+      newData[k] = v
+      return { ...prevdata, ...newData }
+    })
+  }
+
+  let boardStatusOptions = [
+    { text: 'N/A', value: 'na' },
+  ]
+
+  if (boardData && boardData.BoardStatus) {
+    const statuses = boardData.BoardStatus
+
+    boardStatusOptions = [...boardStatusOptions, ...statuses.map(status => {
+      return {
+        text: status.name,
+        value: status.id
+      }
+    })]
+  }
+
   return (
     <>
       <div className="h-36">
-            <div className="py-4">
-                <div className="flex flex-row items-center gap-2">
-                    <span className="capitalize text-2xl font-bold">{boardData.name}</span>
-                    <Button variant="ghost" className="p-2 hover:text-app-orange-500">
-                        <Plus size={20} strokeWidth={3} />
-                    </Button>
-                </div>
-            </div>
-            <div className="flex flex-row text-sm gap-4">
-                <div className="flex flex-nowrap flex-row items-center relative max-w-56">
-                    <Search className="absolute left-2" size={16} strokeWidth={1} />
-                    <Input className="pl-8" type="search" placeholder="Search" />
-                </div>
-                <Popover>
-                    <PopoverTrigger>
-                        <Button variant="ghost" className="btn-w-icon p-2 hover:text-app-orange-500">
-                            <ListFilter size={16}/>
-                            <span>Filters</span>
-                        </Button>
-                    </PopoverTrigger>
-                    <PopoverContent>
-                      Add filters
-                    </PopoverContent>
-                </Popover>
-
-                <ToggleGroup type="single" className="" defaultValue="boardview">
-                    <ToggleGroupItem value="listview" className="btn-w-icon">
-                        <Rows3 size={16} strokeWidth={1}/>
-                        <span>List</span>
-                    </ToggleGroupItem>
-                    <ToggleGroupItem value="boardview" className="btn-w-icon">
-                        <BoardIcon strokeWidth={.5}/>
-                        <span>Board</span>
-                    </ToggleGroupItem>
-                    <ToggleGroupItem value="workflowview" className="btn-w-icon">
-                        <WorkflowIcon />
-                        <span>Workflow</span>
-                    </ToggleGroupItem>
-                </ToggleGroup>
-
-                <Toggle
-                  variant={"outline"}
-                  onPressedChange={(isPressed) => {
-                    // Update the filters.assignee state based on the toggle state
-                    setFilters((prev) => ({
-                      ...prev,
-                      assignee: isPressed ? appState.currentUser.id : "" // Set to current user ID if pressed, otherwise null
-                    }));
-                    console.log(isPressed, 'assigned to me is pressed');
-                  }}
-                >
-                  <span>Assigned to Me</span>
-                </Toggle>
-
-                <DialogAutomations boardId={boardId} />
-            </div>
+        <div className="py-4">
+          <div className="flex flex-row items-center gap-2">
+            <span className="capitalize text-2xl font-bold">{boardData.name}</span>
+            <DialogAddTask boardId={boardId} triggerContent={
+              {
+                button: <Button variant="ghost" className="p-2 hover:text-app-orange-500">
+                  <Plus size={20} strokeWidth={3} />
+                </Button>
+              }} />
+          </div>
         </div>
-    <div className="bg-app-brown-200">
-    <DndContext
-      accessibility={{
-        announcements,
-      }}
-      sensors={sensors}
-      onDragStart={onDragStart}
-      onDragEnd={onDragEnd}
-      onDragOver={onDragOver}
-    >
-<BoardContainer className={className}>
-  <SortableContext items={columnsId}>
-    {columns.map((col) => {
-      // Filter tasks for the current column considering the assignee filter
-      const filteredTasks = tasks.filter((task) => {
-        const isAssignedToMe = filters.assignee ? task.assigneeId === filters.assignee : true; // Check if the task is assigned to the current user
-        return !task.parentId && task.statusId === col.id && isAssignedToMe; // Include the assignee filter
-      });
+        <div className="flex flex-row text-sm gap-4">
+          <div className="flex flex-nowrap flex-row items-center relative max-w-56">
+            <Search className="absolute left-2" size={16} strokeWidth={1} />
+            <Input onChange={handleOnSearch} value={filters.search} className="pl-8" type="search" placeholder="Search" />
+          </div>
+          <Popover>
+            <PopoverTrigger>
+              <Button variant="ghost" className="btn-w-icon p-2 hover:text-app-orange-500">
+                <ListFilter size={16} />
+                <span>Filters</span>
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="p-0 w-fit !shadlow-xl !rounded-xl">
+              <CardHeader>
+                <CardTitle>Filters</CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm table">
+                <div className="flex flex-row items-center gap-2 tr">
+                  <span className="td w-20">Assignee</span>
+                  <div className="td !w-48">
+                    <UserList onChange={(v)=>updateFilters('assigneeId',v)} className="!w-full"/>
 
-      return (
-        <BoardColumn
-          key={col.id}
-          column={col}
-          tasks={filteredTasks} // Pass the filtered tasks to the BoardColumn
-        />
-      );
-    })}
-  </SortableContext>
-</BoardContainer>
+                  </div>
+                </div>
+                <div className="flex flex-row items-center gap-2 tr">
+                  <span className="td">Status</span>
+                  <div className="td">
+                    <SelectScrollable className="font-medium text-gray-700"
+                      placeholder="Filter status"
+                      options={boardStatusOptions}
+                      onChange={(v) => updateFilters('statusId', v)}
+                      value={filters.statusId}
+                    />
+                  </div>
+
+                </div>
+              </CardContent>
+            </PopoverContent>
+          </Popover>
+
+          <ToggleGroup type="single" className="" defaultValue="boardview">
+            <ToggleGroupItem value="listview" className="btn-w-icon">
+              <Rows3 size={16} strokeWidth={1} />
+              <span>List</span>
+            </ToggleGroupItem>
+            <ToggleGroupItem value="boardview" className="btn-w-icon">
+              <BoardIcon strokeWidth={.5} />
+              <span>Board</span>
+            </ToggleGroupItem>
+            <ToggleGroupItem value="workflowview" className="btn-w-icon">
+              <WorkflowIcon />
+              <span>Workflow</span>
+            </ToggleGroupItem>
+          </ToggleGroup>
+
+          <Toggle
+            variant={"outline"}
+            onPressedChange={(isPressed) => {
+              // Update the filters.assignee state based on the toggle state
+              setFilters((prev) => ({
+                ...prev,
+                assignedToMe: isPressed ? appState.currentUser.id : "" // Set to current user ID if pressed, otherwise null
+              }));
+              console.log(isPressed, 'assigned to me is pressed');
+            }}
+          >
+            <span>Assigned to Me</span>
+          </Toggle>
+
+          <DialogAutomations boardId={boardId} />
+          <DialogTaskTemplate boardId={boardId} />
+        </div>
+      </div>
+      <div className="bg-app-brown-200 flex-1">
+        <DndContext
+          accessibility={{
+            announcements,
+          }}
+          sensors={sensors}
+          onDragStart={onDragStart}
+          onDragEnd={onDragEnd}
+          onDragOver={onDragOver}
+        >
+          <BoardContainer className={className}>
+            <SortableContext items={columnsId}>
+            {columns.map((col) => {
+              // Filter tasks for the current column considering the assignee filter
+              const filteredTasks = tasks.filter((task) => {
+                // Determine if the task should be filtered based on assignee-related filters
+                const filterAssignee = filters.assigneeId 
+                  ? task.assigneeId !== filters.assigneeId 
+                  : false;
+
+                const assignedToMe = !filters.assigneeId && filters.assignedToMe 
+                  ? task.assigneeId !== filters.assignedToMe 
+                  : false;
+
+                // Check if every word in the search key matches the task string
+                const stringTask = JSON.stringify(task).toLowerCase();
+                const searchKey = filters.search.toLowerCase();
+                const searchWords = searchKey.split(" "); 
+                const isMatch = searchWords.every((word) => stringTask.includes(word));
+
+                // Determine if the task should be filtered based on status
+                const filterStatus = filters.statusId !== 'na' 
+                  ? filters.statusId !== task.statusId 
+                  : false;
+
+                // Main conditions to include/exclude the task
+                if (task.parentId) return false; // Exclude subtasks
+                if (task.statusId !== col.id) return false; // Exclude tasks not in the current column
+                if (filterStatus) return false; // Exclude tasks that don't match the status filter
+                if (filterAssignee) return false; // Exclude tasks that don't match the assignee filter
+                if (assignedToMe) return false; // Exclude tasks not assigned to me when "assignedToMe" is set
+                if (!isMatch) return false; // Exclude tasks that don't match the search criteria
+
+                return true; // Include task if all conditions pass
+              });
+
+                return (
+                  <BoardColumn
+                    key={col.id}
+                    column={col}
+                    tasks={filteredTasks}
+                  />
+                );
+              })}
+            </SortableContext>
+          </BoardContainer>
 
 
 
-      {"document" in window &&
-        createPortal(
-          <DragOverlay>
-            {activeColumn && (
-              <BoardColumn
-                isOverlay
-                column={activeColumn}
-                tasks={tasks.filter(
-                  (task) => task.statusId === activeColumn.id
+          {"document" in window &&
+            createPortal(
+              <DragOverlay>
+                {activeColumn && (
+                  <BoardColumn
+                    isOverlay
+                    column={activeColumn}
+                    tasks={tasks.filter(
+                      (task) => task.statusId === activeColumn.id
+                    )}
+                  />
                 )}
-              />
+                {activeTask && <TaskCard task={activeTask} isOverlay />}
+              </DragOverlay>,
+              document.body
             )}
-            {activeTask && <TaskCard task={activeTask} isOverlay />}
-          </DragOverlay>,
-          document.body
-        )}
-    </DndContext>
-    </div>
-  
+        </DndContext>
+      </div>
+
     </>
   );
 
@@ -315,21 +420,21 @@ export function KanbanBoard({ className, boardId }: { className?: string, boardI
 
     if (!hasDraggableData(event.active)) return;
     const data = event.active.data.current;
-    console.log(data, 'data ondragstart')
+    console.log(data, 'data ondragstart', '\n')
     if (data?.type === "Column") {
       setActiveColumn(data.column);
       return;
     }
 
     if (data?.type === "Task") {
+      setCurrentTask({ ...data.task });
       setActiveTask(data.task);
       return;
     }
   }
 
   function onDragEnd(event: DragEndEvent) {
-    setActiveColumn(null);
-    setActiveTask(null);
+
 
     const { active, over } = event;
     if (!over) return;
@@ -346,47 +451,60 @@ export function KanbanBoard({ className, boardId }: { className?: string, boardI
     const isOverATask = overData?.type === "Task";
     const isOverAColumn = overData?.type === "Column";
 
-    console.log(activeData ,'dragend activeData')
+    if (isActiveATask && activeTask && currentTask) {
 
-    if (isActiveATask) {
-      const updatedTask = activeData.task
-      _updateTask(updatedTask.id,updatedTask)
-        .then(res => {
-          console.log(res, 'updateTask')
-        })
-        .catch(error => {
-          console.log(error)
-        })
+
+      let isNewStatus = activeTask.statusId !== currentTask.statusId
+
+      if (!isNewStatus) {
+        console.log('nothing to update, same status')
+        return
+      }
+
+      if (completeStatus) {
+        if (activeTask.statusId == completeStatus.id) {
+          activeTask.isCompleted = true
+        } else {
+          activeTask.isCompleted = false
+        }
+      }
+
+      console.log(activeTask)
+      updateTask(activeTask)
+
     }
 
-    console.log(activeId,'activeId')
-    console.log(overId,'overId')
-    
+
     if (activeId === overId) return;
 
-  
 
-    
-    if(isActiveATask){
 
-      
 
-    } else if (isActiveAColumn){
+    if (isActiveATask) {
+
+
+
+    } else if (isActiveAColumn) {
       setColumns((columns) => {
         const activeColumnIndex = columns.findIndex((col) => col.id === activeId);
-  
+
         const overColumnIndex = columns.findIndex((col) => col.id === overId);
-  
+
         return arrayMove(columns, activeColumnIndex, overColumnIndex);
       });
 
     }
 
+
+
+    setActiveColumn(null);
+    setActiveTask(null);
+
   }
 
   function onDragOver(event: DragOverEvent) {
     const { active, over } = event;
-    console.log(active, 'ondragover active')
+    console.log(active, 'ondragover active', '\n')
     if (!over) return;
 
     const activeId = active.id;
@@ -404,54 +522,49 @@ export function KanbanBoard({ className, boardId }: { className?: string, boardI
     const isOverATask = overData?.type === "Task";
     const isOverAColumn = overData?.type === "Column";
 
+    setTasks((prevdata) => {
+      // a Task over another Task
+      console.log(prevdata, 'set tasks')
+      if (!prevdata) return prevdata
 
-    setappState((prevState) => {
-      const newState = { ...prevState };
-      const board = newState.currentUser.boards?.find(b => b.id === boardId);
-      if (!board || !tasks) return prevState;
-      
-      // Im dropping a Task over another Task
-      if (isActiveATask) {
-        const activeStatusId = activeData?.task.statusId;
-        const boardStatus = board.BoardStatus;
-        if (!boardStatus) return prevState;
-
-        const activeStatusIndex = boardStatus.findIndex(status => status.id === activeStatusId)
-        const activeStatus = boardStatus[activeStatusIndex];
-        const activeTaskIndex = tasks.findIndex(task => task.id === activeId);
-
-        console.log(activeTaskIndex, 'activeTaskIndex')
-        if (activeStatusIndex === -1 || activeTaskIndex === -1) return prevState;
-
-        const activeTask = tasks[activeTaskIndex]
+      if (isActiveATask && activeTask) {
+        const newTasks = [...prevdata]
+        const activeStatusId = activeTask.statusId
+        const taskIndex = newTasks.findIndex(t => t.id == activeTask.id)
 
         if (isOverATask) {
-          const overStatusIndex = boardStatus.findIndex(status => status.id == overData.task.statusId);
-          const overStatus = boardStatus[overStatusIndex];
-          const overTaskIndex = tasks.findIndex(task => task.id === overId);
+          const overStatusId = overData.task.statusId
 
           // Reorder tasks within the same status if they have the same status ID
-          tasks = arrayMove(tasks, activeTaskIndex, overTaskIndex);
-          
+          // tasks = arrayMove(tasks, activeTaskIndex, overTaskIndex);
+
+          if (overStatusId && activeStatusId !== overStatusId) {
+            activeTask.statusId = overStatusId;
+            activeTask.updatedAt = new Date();
+            activeTask.updatedById = appState.currentUser.id
+
+          }
+
 
         } else if (isOverAColumn) {
-          const targetStatus = boardStatus.find(status => status.id === overData.column.id);
-          if (activeTask && targetStatus) {
-            activeTask.statusId = targetStatus.id;
+
+          if (activeTask && activeStatusId !== overId) {
+            activeTask.statusId = overId as string;
+            activeTask.updatedAt = new Date();
+            activeTask.updatedById = appState.currentUser.id
+
           }
         }
 
-
+        return newTasks
 
       } else if (isActiveAColumn) {
 
 
       }
 
-      return newState;
-    });
 
-
+    })
 
 
   }

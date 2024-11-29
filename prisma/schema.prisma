@@ -20,56 +20,66 @@ enum Priority {
 }
 
 model User {
-  id             String         @id @default(cuid())
-  firstName      String
-  lastName       String
-  email          String         @unique
-  isAdmin        Boolean        @default(false)
-  isDeleted      Boolean        @default(false)
-  password       String         @default("Welcome1!")
-  createdAt      DateTime       @default(now())
-  boards         Board[]
-  myTasks        Task[]         @relation("AssignedTasks")
-  updatedTasks   Task[]         @relation("UpdatedTasks")
-  isLogin        Boolean?
-  lastLogin      DateTime?
-  roles          String[]
-  profileImage   String?
-  collaborations Collaborator[]
-  clinics        Clinic[]
+  id                String         @id @default(cuid())
+  firstName         String
+  lastName          String
+  email             String         @unique
+  isAdmin           Boolean        @default(false)
+  isDeleted         Boolean        @default(false)
+  password          String         @default("Welcome1!")
+  createdAt         DateTime       @default(now())
+  boards            Board[]        @relation(name: "BoardToUser")
+  myTasks           Task[]         @relation("AssignedTasks")
+  updatedTasks      Task[]         @relation("UpdatedTasks")
+  isLogin           Boolean?
+  lastLogin         DateTime?
+  roles             String[]
+  profileImage      String?
+  collaborations    Collaborator[]
+  clinics           Clinic[]       @relation(name: "ClinicToUser")
+  conversations     Conversation[] @relation("conversations")
+  notifications     Notification[] @relation(name: "NotificationToUser")
+  readNotifications String[]
 }
 
 model Clinic {
-  id        String   @id @default(cuid())
-  createdBy String
-  name      String
-  address   String
-  createdAt DateTime @default(now())
-  users     User[]
-  tasks     Task[]
+  id          String   @id @default(cuid())
+  createdBy   String
+  name        String
+  description String?
+  meta        Json?
+  createdAt   DateTime @default(now())
+  users       User[]   @relation(name: "ClinicToUser")
+  tasks       Task[]   @relation(name: "ClinicToTask")
 }
 
 model Board {
-  id          String        @id @default(cuid())
-  createdBy   String
-  name        String
-  color       String
-  icon        String?
-  createdAt   DateTime      @default(now())
-  users       User[]
-  BoardStatus BoardStatus[] @relation("BoardStatuses")
-  Automations Automations[] @relation("BoardAutomations")
+  id              String         @id @default(cuid())
+  createdBy       String
+  status          String         @default("active")
+  description     String?
+  name            String
+  color           String
+  icon            String?
+  createdAt       DateTime       @default(now())
+  users           User[]         @relation(name: "BoardToUser")
+  userIds         String[]
+  BoardStatus     BoardStatus[]  @relation("BoardStatuses")
+  Automations     Automations[]  @relation("BoardAutomations")
+  taskTemplate    TaskTemplate[] @relation(name: "BoardToTaskTemplate")
+  defaultTemplate String?
 }
 
 model BoardStatus {
-  id        String   @id @default(cuid())
-  createdBy String
-  createdAt DateTime @default(now())
-  name      String
-  board     Board    @relation("BoardStatuses", fields: [boardId], references: [id])
-  boardId   String
-  position  Int
-  tasks     Task[]   @relation("TaskStatus")
+  id         String   @id @default(cuid())
+  createdBy  String
+  createdAt  DateTime @default(now())
+  name       String
+  board      Board?   @relation("BoardStatuses", fields: [boardId], references: [id], onDelete: Cascade) // Optional relation
+  boardId    String?
+  position   Int
+  tasks      Task[]   @relation("TaskStatus")
+  isComplete Boolean  @default(false)
 }
 
 model Task {
@@ -77,6 +87,7 @@ model Task {
   name         String
   taskLink     String?        @default("")
   description  String?
+  isCompleted  Boolean?       @default(false)
   status       BoardStatus    @relation("TaskStatus", fields: [statusId], references: [id]) // Using BoardStatus for task status
   statusId     String // Foreign key to the BoardStatus
   priority     String         @default("low") // 'Low', 'Medium', 'High', etc.
@@ -92,7 +103,9 @@ model Task {
   parentId     String? // Foreign key to parent task
   subtasks     Task[]         @relation("Subtasks") // Subtasks
   collaborator Collaborator[]
-  clinics      Clinic[]
+  clinic       Clinic?        @relation(name: "ClinicToTask", fields: [clinicId], references: [id])
+  clinicId     String?
+  comments     Conversation[] @relation("taskComments")
 }
 
 model Collaborator {
@@ -109,7 +122,7 @@ model Collaborator {
 model Automations {
   id        String   @id @default(cuid())
   name      String
-  board     Board    @relation("BoardAutomations", fields: [boardId], references: [id])
+  board     Board    @relation("BoardAutomations", fields: [boardId], references: [id], onDelete: Cascade)
   boardId   String
   triggers  Json?
   actions   Json?
@@ -117,4 +130,58 @@ model Automations {
   createdAt DateTime @default(now())
   updatedBy String?
   updatedAt DateTime @updatedAt
+}
+
+model Conversation {
+  id          String    @id @default(cuid())
+  status      String    @default("active")
+  type        String?   @default("private")
+  task        Task?     @relation("taskComments", fields: [taskId], references: [id])
+  taskId      String? // Optional field, change to `String` if required
+  name        String?
+  description String?
+  icon        String?
+  users       User[]    @relation("conversations")
+  messages    Message[] @relation("conversationMessages")
+  createdBy   String
+  createdAt   DateTime  @default(now())
+}
+
+model Message {
+  id              String        @id @default(cuid())
+  status          String        @default("active")
+  type            String?
+  content         String
+  parentMessage   Message?      @relation("MessageReplies", fields: [parentMessageId], references: [id])
+  parentMessageId String? // Nullable, will be set if it's a reply to another message
+  conversation    Conversation? @relation("conversationMessages", fields: [conversationId], references: [id], onDelete: Cascade)
+  conversationId  String?
+  createdBy       String
+  createdAt       DateTime      @default(now())
+  replies         Message[]     @relation("MessageReplies")
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  emailedTo String[]
+  type      String?
+  dataId    String?
+  title     String?
+  content   String
+  sentTo    User[]   @relation(name: "NotificationToUser")
+  appRoute  String?
+  createdBy String
+  createdAt DateTime @default(now())
+}
+
+model TaskTemplate {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  data        Json
+  boards      Board[]  @relation(name: "BoardToTaskTemplate")
+  updatedBy   String?
+  updatedAt   DateTime @updatedAt
+  createdBy   String
+  createdAt   DateTime @default(now())
 }

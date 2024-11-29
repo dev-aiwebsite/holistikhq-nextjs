@@ -22,6 +22,7 @@ const config: Config = {
   				'500': '##6b953c'
   			},
   			'app-blue': {
+				'300': '#CBD5E4',
   				'500': '#1a2e5e'
   			},
   			'app-orange': {

@@ -5,45 +5,51 @@ import RichTextEditor from "../RichTextEditor";
 import { useEffect, useRef, useState } from "react";
 import { useAppStateContext } from "@app/context/AppStatusContext";
 import { _updateTask } from "@lib/server_actions/database_crud";
-import { CompleteTaskWithRelations, TypeBoardWithStatus } from "@lib/types";
+import { CompleteTaskWithRelations } from "@lib/types";
 import UserList from "../UserList";
 import TaskNameInput from "../ui/TaskNameInput";
 import { Button } from "../ui/button";
 import { CircleCheck, Plus } from "lucide-react";
 import { priorityOptions } from "@lib/const";
+import { SubtaskSection } from "./SubtaskSection";
 
 type TypeFormUpdateTask = {
-    taskId: string;
+    taskId?: string;
+    task:CompleteTaskWithRelations;
     boardId?: string;
+    onSubmit?:(task:CompleteTaskWithRelations)=>void;
 };
 
-const FormUpdateTask = ({ taskId, boardId }: TypeFormUpdateTask) => {
-    const { appState, setappState, updateTask } = useAppStateContext();
-    console.log(taskId, 'taskId FormUpdateTask')
+const FormUpdateTask = ({task, taskId, onSubmit }: TypeFormUpdateTask) => {
+    const { appState, tasks, setappState, updateTask } = useAppStateContext();
+    console.log(task, 'task FormUpdateTask')
     if(!appState.tasks) return false
-    const task = appState.tasks.find(t => t.id == taskId)
     if(!task) return false
-
+    if(!taskId){
+        taskId = task.id
+    }
     console.log(task, 'FormUpdateTask task')
     const currentUser = appState.currentUser;
     const boards = currentUser?.boards;
     const formRef = useRef<HTMLFormElement | null>(null)
-    const subtasksIds = task.subtasks.map(s => s.id)
-    const subtasks = appState.tasks?.filter(task => subtasksIds.includes(task.id))
+    const subtasks = task.subtasks
     
-    const boardUse = () => {
-        if (!boards) return undefined;
-        let board = {} as TypeBoardWithStatus | undefined;
-        if (boardId) {
-            board = boards.find(b => b.id == boardId);
-        } else {
-            board = boards[0];
-        }
-        return board;
-    };
+    const boardId = task.status.boardId
+    const board = boards.find(b => b.id == boardId);
+    const statuses = board?.BoardStatus
+    const completeStatus = statuses?.find(s => s.isComplete)
+    let boardStatusOptions = [
+        { text: 'Set Status', value: '' },
+    ];
 
-    const [board, setBoard] = useState<TypeBoardWithStatus | undefined>(boardUse);
+    if (statuses) {
+        boardStatusOptions = statuses.map(status => ({
+            text: status.name,
+            value: status.id,
+        }));
+    }
 
+    console.log(boardId, 'boardId')
     const defaultValues = task ? {
         id: task.id,
         name: task.name,
@@ -59,22 +65,25 @@ const FormUpdateTask = ({ taskId, boardId }: TypeFormUpdateTask) => {
         defaultValues,
     });
 
+    const { isDirty } = form.formState;
+
     function handleOnSubmit(newTaskData: CompleteTaskWithRelations) {
+        if(completeStatus){
+            if(completeStatus.id == newTaskData.statusId){
+                newTaskData.isCompleted = true
+            }
+        }
         updateTask(newTaskData)
+        if(onSubmit){
+            const newTaskDataForState = {...task,...newTaskData}
+            onSubmit(newTaskDataForState)
+        }
     }
 
-    let boardStatusOptions = [
-        { text: 'Set Status', value: '' },
-    ];
+ 
 
-    if (board && board.BoardStatus) {
-        const statuses = board.BoardStatus;
-        boardStatusOptions = statuses.map(status => ({
-            text: status.name,
-            value: status.id,
-        }));
-    }
-
+    console.log(defaultValues, 'defaultValues')
+    console.log(boardStatusOptions, 'boardStatusOptions')
     return (
         <div className="space-y-4">
             <form ref={formRef} onSubmit={form.handleSubmit(handleOnSubmit)} className="formAddTask space-y-4">
@@ -182,71 +191,15 @@ const FormUpdateTask = ({ taskId, boardId }: TypeFormUpdateTask) => {
                 
             </form>
             <div>
-                <SubtaskSection subtasks={subtasks} />
+                {boardId && 
+                    <SubtaskSection task={task} subtasks={subtasks} taskId={taskId} />
+                }
             </div>
             <div className="w-full flex flex-row">
-                <button className="ml-auto text-sm btn btn-primary" onClick={(e) => formRef?.current?.requestSubmit()} type="submit">Save</button>
+                <button className="ml-auto text-sm btn btn-primary" onClick={(e) => formRef?.current?.requestSubmit()} disabled={!isDirty} type="submit">Save</button>
             </div>
         </div>
     );
 };
 
 export default FormUpdateTask;
-
-
-export const SubtaskSection = ({subtasks = []}:{subtasks?:CompleteTaskWithRelations[]}) => {
-
-    const [showNewSubtaskForm,setShowNewSubtaskForm] = useState(false)
-    const newSubtaskInputRef = useRef<HTMLInputElement | null>(null);
-
-    useEffect(() => {
-        if (showNewSubtaskForm && newSubtaskInputRef.current) {
-            newSubtaskInputRef.current.focus();
-        }
-    }, [showNewSubtaskForm]);
-
-    return (<>
-
-            <div className="text-sm font-semibold flex flex-row items-center gap-1">
-                    <span>Subtasks</span>
-                    <Button onClick={() => setShowNewSubtaskForm(!showNewSubtaskForm)} variant="ghost" size="icon" className="w-6 h-6">
-                        <Plus size={16} strokeWidth={2} />
-                    </Button>
-            </div>
-           {(showNewSubtaskForm || subtasks.length > 0) && <div className="w-full text-sm divide-y divide-solid flex flex-col border-y border-gray-200">
-                {showNewSubtaskForm && <>
-                    <form action="">
-                        <div className="group focus-within:bg-app-brown-200 hover:bg-app-brown-200 w-full flex flex-row flex-nowrap items-center gap-2 p-2">
-                            <CircleCheck size="18" strokeWidth="2" className="hover:cursor-pointer text-gray-400 hover:text-green-600"/>
-                            <input ref={newSubtaskInputRef} 
-                            className="w-72 p-1 bg-transparent focus:bg-white ring-0 border-none outline-none"
-                            type="text" placeholder="Task name" name="name"/>
-                            <div className="ml-auto flex flex-row flex-nowrap gap-2 items-center">
-                                <UserList variant="icon" value={null}/>
-                                <DatePickerWithPresets variant="icon" className=""/>
-                            </div>
-                        </div>
-                    </form>
-                </>}
-                {subtasks.length > 0 && subtasks.map((subtask) => (
-
-                    <form action="">
-                        <div className="group focus-within:bg-app-brown-200 hover:bg-app-brown-200 w-full flex flex-row flex-nowrap items-center gap-2 p-2">
-                            { subtask.status.name == 'complete' ?
-                                <CircleCheck size="18" strokeWidth="2" className="hover:cursor-pointer text-green-600 hover:text-green-500"/>
-                                : <CircleCheck size="18" strokeWidth="2" className="hover:cursor-pointer text-gray-400 hover:text-green-600"/>
-                                }
-                            <input
-                            className="text-gray-600 text-sm w-72 p-1 bg-transparent focus:bg-white ring-0 border-none outline-none"
-                            type="text" placeholder="Task name" name="name" defaultValue={subtask.name}/>
-                            <div className="ml-auto flex flex-row flex-nowrap gap-2 items-center">
-                                <UserList variant="icon" value={subtask.assigneeId}/>
-                                <DatePickerWithPresets variant="icon" className="" value={subtask.dueDate || undefined}/>
-                            </div>
-                        </div>
-                    </form>
-                )
-            )}
-            </div>}
-    </>)
-}

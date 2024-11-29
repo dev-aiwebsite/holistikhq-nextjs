@@ -8,7 +8,7 @@ import {
 import * as SelectPrimitive from "@radix-ui/react-select"
 
 import { cn } from "@lib/utils"
-import { forwardRef,ElementRef,ComponentPropsWithoutRef, useState } from "react"
+import { forwardRef, ElementRef, ComponentPropsWithoutRef, useState, ReactNode, useEffect } from "react"
 import { Input } from "./input"
 
 const Select = SelectPrimitive.Root
@@ -82,7 +82,7 @@ const SelectContent = forwardRef<
       className={cn(
         "relative z-50 max-h-96 min-w-[8rem] overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
         position === "popper" &&
-          "data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1",
+        "data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1",
         className
       )}
       position={position}
@@ -93,7 +93,7 @@ const SelectContent = forwardRef<
         className={cn(
           "p-1",
           position === "popper" &&
-            "h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]"
+          "h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]"
         )}
       >
         {children}
@@ -164,7 +164,7 @@ export {
 }
 
 type OptionBase = {
-  text: React.ReactNode; // JSX or plain text to display
+  text: ReactNode; // JSX or plain text to display
   value: string;
 };
 
@@ -183,54 +183,59 @@ type TypeOption<ShowSearch extends boolean> = {
 
 export const SelectScrollable = <ShowSearch extends boolean>({
   placeholder,
+  icon,
   options,
   onChange,
   className,
   showSearch,
   ...props
 }: {
-  className?:string;
-  placeholder?:string;
-  showSearch?:ShowSearch;
+  className?: string;
+  icon?: ReactNode;
+  placeholder?: string;
+  showSearch?: ShowSearch;
   options: OptionBase[];
   onChange?: (v: string) => void;
 } & SelectPrimitive.SelectProps) => {
   const [searchQuery, setSearchQuery] = useState('');
-    function handleOnValueChange(v:string){
-        if(onChange){
-          onChange(v)
-        }
+  function handleOnValueChange(v: string) {
+    if (onChange) {
+      onChange(v)
     }
+  }
 
-    return (
-      <Select {...props} onValueChange={(v) => handleOnValueChange(v)} defaultValue={options[0].value}>
-        <SelectTrigger className={className}>
-          <SelectValue placeholder={placeholder ? placeholder : 'Select an option'} />
-        </SelectTrigger>
-        <SelectContent>
+
+  return (
+    <Select {...props} onValueChange={(v) => handleOnValueChange(v)}>
+      <SelectTrigger className={className}>
+        {icon && icon}
+        <SelectValue placeholder={placeholder ? placeholder : 'Select an option'} />
+      </SelectTrigger>
+      <SelectContent>
         {showSearch && (
-        <Input
-          name="search"
-          placeholder="Search"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
-      )}
-      {options
-        .filter((option) => {
-          if (showSearch && option.label) {
-            return option.label.toLowerCase().includes(searchQuery.toLowerCase());
-          } else {
-            return true; // Keep the option if not searching
-          }
-          
-        })
-        .map((option, index) => (
-          <SelectItem key={index} value={option.value}>
-            {option.text}
-          </SelectItem>
-        ))}
-        </SelectContent>
-      </Select>
-    )
+          <Input
+            name="search"
+            placeholder="Search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        )}
+        {options
+          .filter((option) => {
+            if (showSearch && option.label) {
+              return option.label.toLowerCase().includes(searchQuery.toLowerCase());
+            } else {
+              return true; // Keep the option if not searching
+            }
+
+          })
+          .map((option, index) => (
+            <SelectItem key={index} value={option.value}>
+              {option.text}
+            </SelectItem>
+          ))
+        }
+      </SelectContent>
+    </Select>
+  )
 }

@@ -1,5 +1,5 @@
 "use client"
-import { ChartSplineIcon, ChevronFirst, MessageSquareWarning, SquareKanbanIcon } from "lucide-react";
+import { ChartSplineIcon, ChevronFirst, MessageSquareWarning, Plus, SquareKanbanIcon } from "lucide-react";
 import Image from "next/image";
 import { Key, useState } from "react";
 import { DashboardIcon } from "@radix-ui/react-icons";
@@ -22,11 +22,17 @@ import { useAppStateContext } from "@app/context/AppStatusContext";
 import { Board } from "@prisma/client";
 import { getInitials } from "@lib/helperFunctions";
 import ProfileAvatar from "./ProfileAvatar";
+import Dialog from "../dialogs/Dialog";
+import AddBoardForm from "../forms/FormAddBoard";
+import { Button } from "./button";
+import FormAddTask from "../forms/FormAddTask";
+import { DialogAddTask } from "../dialogs/DialogAddTask";
+import { DialogAddBoard } from "../dialogs/DialogAddBoard";
 
 
 const Sidebar = ({ searchParams }: { searchParams?: { [key: string]: string } }) => {
 
-    const { isOpen, openDrawer,closeDrawer,content } = useDrawerContext()
+    const { isOpen, openDrawer, closeDrawer, content } = useDrawerContext()
     const pathname = usePathname()
     const [isCollapsed, setIsCollapsed] = useState(false)
 
@@ -35,10 +41,10 @@ const Sidebar = ({ searchParams }: { searchParams?: { [key: string]: string } })
         openDrawer()
     }
 
-    const {appState} = useAppStateContext()
+    const { appState } = useAppStateContext()
     const currentUser = appState.currentUser
     const boards = currentUser.boards
-    
+
     return (
         <div className={cn("sidebar bg-app-green-400 flex flex-col flex-nowrap", isCollapsed && 'collapsed')}>
             <div className="h-[var(--header-h)] max-h-[var(--header-h)] flex items-center ">
@@ -52,16 +58,10 @@ const Sidebar = ({ searchParams }: { searchParams?: { [key: string]: string } })
 
                 </Image>
             </div>
-            
             <button className="navitem">
-                <DialogTrigger asChild>
-                <span className={cn("navitem-trigger !text-white bg-app-blue-500 hover:!bg-app-blue-500 hover:opacity-90 !w-fit")}>
-                    <AddTaskIcon className="main-icon icon" />
-                    <span className="title">Create Task</span>
-                </span>
-                </DialogTrigger>
+                <DialogAddTask />
             </button>
-            
+
             <ul className="navlist">
                 <li className="navitem">
                     <Link className={cn("navitem-trigger", pathname == '/dashboard' ? 'active' : '')}
@@ -73,30 +73,37 @@ const Sidebar = ({ searchParams }: { searchParams?: { [key: string]: string } })
                 <li className="navitem">
                     <Accordion type="single" collapsible>
                         <AccordionItem value="item-1" >
-                            <AccordionTrigger className={cn("navitem-trigger", pathname == '/board' ? 'active' : '')}>
-                                <span className="flex items-center flex-nowrap">
-                                    <SquareKanbanIcon className="main-icon icon" />
-                                    <span className="title text-current">Boards</span>
-                                </span>
-                            </AccordionTrigger>
+                            <div className="relative group">
+                                <AccordionTrigger className={cn("navitem-trigger group-hover:[&_>svg]:hidden", pathname == '/board' ? 'active' : '')}>
+                                    <span className="flex items-center flex-nowrap">
+                                        <SquareKanbanIcon className="main-icon icon" />
+                                        <span className="title text-current">Boards</span>
+                                    </span>
+
+                                </AccordionTrigger>
+
+                                <div className="absolute top-1/2 right-2 -translate-y-1/2 hidden group-hover:block">
+                                  <DialogAddBoard />
+                                </div>
+                            </div>
                             <AccordionContent>
                                 <ul className="submenu">
-                                    {boards && boards.map((board)=>(<li key={board.id} className="submenu-navitem">
-                                        <Link  className={cn("navitem-trigger", pathname == '' ? 'active' : '')}
+                                    {boards && boards.map((board) => (<li key={board.id} className="submenu-navitem">
+                                        <Link className={cn("navitem-trigger", pathname == '' ? 'active' : '')}
                                             href={`/board/${board.id}`}>
                                             {board.name}
                                         </Link>
-                                    </li>)) }
+                                    </li>))}
                                 </ul>
                             </AccordionContent>
                         </AccordionItem>
                     </Accordion>
                 </li>
                 <li className="navitem">
-                    <Link className={cn("navitem-trigger", pathname == '/chat' ? 'active' : '')}
-                        href="/chat">
+                    <Link className={cn("navitem-trigger", pathname == '/messages' ? 'active' : '')}
+                        href="/messages">
                         <MessageIcon className="main-icon icon" />
-                        <span className="title text-current">Chat</span>
+                        <span className="title text-current">Messages</span>
                     </Link>
                 </li>
                 <li className="navitem">
@@ -115,8 +122,8 @@ const Sidebar = ({ searchParams }: { searchParams?: { [key: string]: string } })
                     <li>
                         <Link className={cn("navitem-trigger flex flex-row flex-wrap-nowrap items-center gap-4")}
                             href="#">
-                            
-                            <ProfileAvatar name={getInitials(`${currentUser.firstName} ${currentUser.lastName}`)} src={currentUser.profileImage}/>
+
+                            <ProfileAvatar name={getInitials(`${currentUser.firstName} ${currentUser.lastName}`)} src={currentUser.profileImage} />
 
                             <span className="title text-white capitalize">{currentUser.firstName}</span>
                         </Link>
@@ -133,7 +140,7 @@ const Sidebar = ({ searchParams }: { searchParams?: { [key: string]: string } })
                         <LogoutBtn className={cn("flex flex-row flex-wrap-nowrap items-center title text-white hover:underline hover:text-app-orange-500 gap-4")} />
                     </li>
                 </ul>
-                
+
                 <div style={{ height: 'var(--footer-h)' }} className="relative">
                     <button type="button" className="sidebar-collapsed-toggle btn-circle bg-white p-1 absolute right-0 translate-x-1/2 text-app-orange-500 hover:bg-orange-100 shadow-md ring-1 ring-gray-200"
                         onClick={() => setIsCollapsed(!isCollapsed)}>

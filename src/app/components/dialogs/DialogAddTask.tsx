@@ -1,29 +1,48 @@
 "use client"
 import { ReactNode, useState } from "react"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "src/components/ui/dialog";
-import { Button } from "./button";
+import Dialog from "./Dialog";
+import { AddTaskIcon } from "public/svgs/svgs";
+import FormAddTask, { TypeAddTaskdefaultData } from "../forms/FormAddTask";
+import { cn } from "@lib/utils";
 
 
 type DialogAddTaskPropsType = {
-    children?:ReactNode;
-    headerContent?:ReactNode | string;
-    isOpen?:boolean
+  isOpen?: boolean,
+  triggerContent?: {
+    text?: string;
+    icon?: ReactNode;
+    button?: JSX.Element;
+  },
+  boardId?:string;
+  formDefaultData?:TypeAddTaskdefaultData;
 
 }
-export function DialogAddTask({children,isOpen,headerContent}:DialogAddTaskPropsType) {
-  const [dialogOpen,setDialogOpen] = useState(isOpen)
-  
+export function DialogAddTask({boardId,triggerContent, isOpen, formDefaultData }: DialogAddTaskPropsType) {
+  const [dialogOpen, setDialogOpen] = useState(isOpen)
+
+  let triggerEl = <span className={cn("navitem-trigger !text-white bg-app-blue-500 hover:!bg-app-blue-500 hover:opacity-90 !w-fit")}>
+      <AddTaskIcon className="main-icon icon" />
+        <span className="title">Create Task</span>
+  </span>
+
+  if(triggerContent){
+    if(triggerContent.button){
+      triggerEl = triggerContent.button
+    } else {
+      triggerEl = <span className={cn("navitem-trigger !text-white bg-app-blue-500 hover:!bg-app-blue-500 hover:opacity-90 !w-fit")}>
+      {triggerContent.icon ? triggerContent.icon : <AddTaskIcon className="main-icon icon" />}
+        {triggerContent.text ? triggerContent.text : <span className="title">Create Task</span>}
+        </span>
+    }
+  }
+
+
   return (
-    <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-      <DialogContent className="max-w-[425px] md:max-w-full md:w-[600px]">
-        <DialogHeader>
-          <DialogTitle>{headerContent}</DialogTitle>
-        </DialogHeader>
-          {children}
-        {/* <DialogFooter>
-          <Button type="submit">Save</Button>
-        </DialogFooter> */}
-      </DialogContent>
+    <Dialog header={false} isOpen={dialogOpen} onOpenChange={setDialogOpen}
+      title="New Task"
+      trigger={triggerEl}
+    >
+      <FormAddTask defaultData={formDefaultData} boardId={boardId} onCancel={()=>setDialogOpen(false)} />
     </Dialog>
   )
 }

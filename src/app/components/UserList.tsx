@@ -10,14 +10,14 @@ import {
     CommandList,
   } from "./ui/command";
 import { Button } from "./ui/button";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAppStateContext } from "@app/context/AppStatusContext";
 import { CircleX } from "lucide-react";
 import { cn } from "@lib/utils";
 
 type TypeUserList = {
     onChange?:(value:any)=>void;
-    value:string | null;
+    value?:string;
     name?:string;
     variant?:'icon';
     className?:string;
@@ -25,7 +25,7 @@ type TypeUserList = {
 
 const UserList = ({variant,name,value,onChange,className }:TypeUserList) => {
   const [open, setOpen] = useState(false)
-  const [selected, setSelected] = useState<string | null>(value)
+  const [selected, setSelected] = useState<string | undefined>(value)
   const {appState} = useAppStateContext()
   const users = appState.users
 
@@ -34,7 +34,7 @@ const UserList = ({variant,name,value,onChange,className }:TypeUserList) => {
     if(onChange){
         onChange(userId)
     }
-    setSelected(userId || null)
+    setSelected(userId)
     setOpen(false)
   }
 
@@ -58,17 +58,22 @@ const UserList = ({variant,name,value,onChange,className }:TypeUserList) => {
       break;
   }
 
+  useEffect(()=>{
+    if(selected == value) return 
+    setSelected(value)
+  },[value])
+
   return (
     <div className="flex items-center space-x-4 w-full">
       <Popover open={open} onOpenChange={setOpen}>
-        <div className="relative group w-full">
+        <div className="relative group/assigneelist w-full">
           <PopoverTrigger asChild>
               <Button variant={variant == 'icon' ? 'ghost' : 'outline'} className={cn('text-gray-400',selectedStyles, className)}>
                 {selected ? <ProfileAvatar showName={showName} name={`${selectedUserDetails?.firstName} ${selectedUserDetails?.lastName}`} /> : <><ProfileAvatar showName={showName} placeholder="Select Assignee" /></>}
               </Button>
           </PopoverTrigger>
           <CircleX size="18" strokeWidth="1.5" onClick={() => handleOnChange("")} 
-          className={cn(`invisible hover:cursor-pointer text-gray-600 hover:text-red-400 fill-white absolute top-1/2 -translate-y-1/2 right-2 group-has-[:hover]:visible`, !selected && 'hidden', variant == 'icon' && '-translate-y-[10%] translate-x-[20%] top-0 right-0') }/>
+          className={cn(`invisible hover:cursor-pointer text-gray-600 hover:text-red-400 fill-white absolute top-1/2 -translate-y-1/2 right-2 group-hover/assigneelist:visible`, !selected && 'hidden', variant == 'icon' && '-translate-y-[10%] translate-x-[20%] top-0 right-0') }/>
         </div>
 
         <PopoverContent className="p-0" side="bottom" align="start">

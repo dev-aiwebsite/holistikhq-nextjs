@@ -69,6 +69,8 @@ export function TaskCard({ task, isOverlay, className, onClick }: TaskCardProps)
   function handleCardOnClick(){
     if(onClick){
       onClick()
+      
+
     }
   }
 
@@ -103,7 +105,7 @@ export function TaskCard({ task, isOverlay, className, onClick }: TaskCardProps)
           <span>09:05 AM</span>
         </div>
       </CardHeader>
-      <CardContent className={cn("text-neutral-500 px-3 pt-3 pb-6 text-left whitespace-pre-wrap text-sm line-clamp-3 truncate max-h-[4.5rem] mb-2")}>
+      <CardContent className={cn("pointer-events-none text-neutral-500 px-3 pt-3 pb-6 text-left whitespace-pre-wrap text-sm line-clamp-3 truncate max-h-[4.5rem] mb-2")}>
         <div dangerouslySetInnerHTML={{ __html: `${task.description}` }}>
 
         </div>

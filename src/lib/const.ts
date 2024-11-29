@@ -25,3 +25,63 @@ export const actionsList = [
     { 'text': 'Create message', 'value': 'newMessage' },
 
 ]
+
+export const mainBoards = [
+    {id:"cm3vhdw9n00002e5apwuup18x"},
+    {id:"cm3vheqc400072e5axwx44uwb"},
+    {id:"cm3vhfsn2000e2e5a58y4v4nz"},
+    {id:"cm3vhgmjw000l2e5akoupba0u"},
+]
+
+export const defaultStatusesName = ["Pending","Active","Complete"]
+
+export const defaultTaskCompleteData = {
+    id: "",
+    name: "",
+    taskLink: "",
+    description: "",
+    isCompleted: false,
+    statusId: "",
+    priority: "",
+    dueDate: null,
+    createdBy: "",
+    createdAt: null,
+    updatedAt: null,
+    assigneeId: "",
+    updatedById: null,
+    parentId: null,
+    clinicId: "",
+    subtasks: [],
+    status: {
+      id: "",
+      createdBy: "",
+      createdAt: null,
+      name: "",
+      boardId: "",
+      position: 0,
+      isComplete: false,
+    },
+    assignedTo: {
+      id: "",
+      firstName: "",
+      lastName: "",
+      email: "",
+      isAdmin: false,
+      isDeleted: false,
+      password: "",
+      createdAt: null,
+      isLogin: false,
+      lastLogin: null,
+      roles: [],
+      profileImage: "",
+      readNotifications: [],
+    },
+    clinic: {
+      id: "",
+      createdBy: "",
+      name: "",
+      description: null,
+      meta: null,
+      createdAt: null,
+    },
+  };

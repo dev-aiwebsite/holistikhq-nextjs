@@ -45,7 +45,9 @@ export default async function Layout({ children }: { children: React.ReactNode }
                 },
             },
             clinics: {
-                users: true
+                include: {
+                    users: true,
+                  }
             },
             notifications: true,
         }

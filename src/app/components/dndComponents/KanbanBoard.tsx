@@ -127,10 +127,9 @@ export function KanbanBoard({ className, boardId }: { className?: string, boardI
   const isDragDisable = useMemo(() => {
     let isDisabled = false
 
-    if(mainBoards.filter(b => b.id == boardId).length){
-      if (appAccess.mainboards.dnd.some(role => appState.currentUser.roles.includes(role))) {
-        isDisabled = true
-      }
+    if(mainBoards.some(b => b.id == boardId)){
+      isDisabled = !appAccess.mainboards.dnd.some(role => appState.currentUser.roles.includes(role))
+     
     }
    
     return isDisabled

@@ -35,13 +35,14 @@ const Sidebar = ({ searchParams }: { searchParams?: { [key: string]: string } })
     const { isOpen, openDrawer, closeDrawer, content } = useDrawerContext()
     const pathname = usePathname()
     const [isCollapsed, setIsCollapsed] = useState(false)
+    const { appState } = useAppStateContext()
 
 
     function handleOpenTaskForm() {
         openDrawer()
     }
 
-    const { appState } = useAppStateContext()
+    
     const currentUser = appState.currentUser
     const boards = currentUser.boards
 
@@ -79,7 +80,7 @@ const Sidebar = ({ searchParams }: { searchParams?: { [key: string]: string } })
                 {currentUser.roles.includes('client') && <NavItem link="/mytodo" title={"My To Do"} icon={<NotebookPen/>} />}
                 <NavItem link="/messages" title={"Messages"} icon={<MessageIcon/>} />
                 <NavItem link="/analytics" title={"Analytics"} icon={<ChartSplineIcon/>} />
-                <NavItem link="/users" title={"Users"} icon={<UserRoundPlus/>} />
+                {currentUser.roles.includes('admin') && <NavItem link="/users" title={"Users"} icon={<UserRoundPlus/>} />}
             </ul>
             <div className="mt-auto bg-app-blue-500">
                 <ul className="space-y-2 p-[calc(var(--sidebar-padding)_/_2)]">

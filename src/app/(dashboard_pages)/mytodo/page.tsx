@@ -11,7 +11,7 @@ export default function Page() {
     const role = currentUser.roles
     
     return (<>
-        <MyBoard className="bg-app-brown-200 board-wrapper py-4" />
+            my todos..
         </>
     );
 

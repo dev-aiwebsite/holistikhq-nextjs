@@ -1,3 +1,4 @@
+import { DefaultJWT } from './../../node_modules/@auth/core/jwt.d';
 import {Prisma, Board, BoardStatus, Conversation, Message, Task, Automations, Clinic, User, Notification, TaskTemplate } from "@prisma/client";
 import { Session } from "next-auth"
 import { taskIncludeAll } from "./server_actions/query";
@@ -7,14 +8,15 @@ export interface ExtendedUser extends User {
     firstName: string;
     lastName: string;
     profileImage: string;
-    role?: string[];
+    roles: string[];
     id: string;
   }
+
   export interface ExtendedSession extends Session {
     firstName: string;
     lastName: string;
     profileImage: string;
-    role?: string[];
+    roles?: string[];
     userId: string;
     email: string;
   }

@@ -1,3 +1,4 @@
+import { roles } from './../const';
 import NextAuth, { CredentialsSignin } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 
@@ -5,13 +6,14 @@ import { authConfig } from './authconfig';
 import bcrypt from 'bcrypt';
 import { _getUsers } from "@lib/server_actions/database_crud";
 import { ExtendedSession, ExtendedUser } from "@lib/types";
+import { User } from "prisma/prisma-client";
 
 const login = async (credentials:Partial<Record<string, unknown>>) => {
     try {
-        let user = await _getUsers({email: credentials?.useremail as string})
-        
-        if(Array.isArray(user)){
-            user = user[0]
+        let resuser = await _getUsers({email: credentials?.useremail as string})
+        let user:User | null = null
+        if(Array.isArray(resuser)){
+            user = resuser[0]
         }
         if(!user) throw new Error('wrong credentials')
         const viaAdmin = credentials?.viaadmin || false
@@ -38,7 +40,6 @@ export const { signIn, signOut, auth } = NextAuth({
             async authorize(credentials) {
                 const user = await login(credentials)
                 if(user){
-                    console.log(user, 'from authorized auth.ts return user object')
                     return user
                 }  else {
                     throw new CustomError('wrong credentials 2')
@@ -50,23 +51,33 @@ export const { signIn, signOut, auth } = NextAuth({
     callbacks: {
         async jwt({ token, user }) {
             if (user) {
-                const extendedUser = user as ExtendedUser;
-                token.firstName = extendedUser.firstName;
-                token.lastName = extendedUser.lastName; 
-                token.email = extendedUser.email; 
-                token.userId = extendedUser.id;
-                token.profileImage = extendedUser.profileImage;
+                
+                token.firstName = user.firstName;
+                token.lastName = user.lastName; 
+                token.email = user.email; 
+                token.userId = user.id;
+                token.profileImage = user.profileImage;
+                token.roles = user.roles;
             }
             return token;
         },
         async session({ session, token }) {
             if (token) {
-                const ExtendedSession = session as unknown as ExtendedSession
-                ExtendedSession.firstName = token.firstName as string
-                ExtendedSession.lastName = token.lastName as string
-                ExtendedSession.email = token.email as string
-                ExtendedSession.userId = token.userId as string
-                ExtendedSession.profileImage = token.profileImage as string
+                
+                session.firstName = token.firstName
+                session.lastName = token.lastName 
+                session.email = token.email 
+                session.userId = token.userId 
+                session.profileImage = token.profileImage 
+                session.roles = token.roles
+                
+                session.user.firstName = token.firstName
+                session.user.lastName = token.lastName 
+                session.user.email = token.email 
+                session.user.userId = token.userId 
+                session.user.profileImage = token.profileImage 
+                session.user.roles = token.roles
+                
             }
             return session
         }

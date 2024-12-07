@@ -23,6 +23,6 @@
       "@lib/*": ["src/lib/*"],
     },
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "src/app/components/dndComponents/KanbanBoard.bck"],
+  "include": ["next-env.d.ts", "next-auth.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "src/app/components/dndComponents/KanbanBoard.bck", "auth.d.ts" ],
   "exclude": ["node_modules"]
 }

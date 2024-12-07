@@ -1,6 +1,6 @@
 "use server"
 import { Conversation } from './../../../node_modules/.prisma/client/index.d';
-import { signIn } from "@lib/auth/auth";
+import { signIn, signOut } from "@lib/auth/auth";
 import prisma from "@lib/db"
 import { AutomationActionType, AutomationAddType, AutomationType, AutomationUpdateType, BoardAddType, BoardStatusAddType, ClinicAddType, CompleteTaskWithRelations, ConversationAddType, createUserType, MessageAddType, TaskAddTypeComplete, TaskTemplateAddType, TaskTemplateComplete, TypeBoardComplete, TypeBoardWithStatus, TypeClinicComplete, TypeTask, UserAddType } from "@lib/types";
 import {Notification, Task, Board, User, BoardStatus, Prisma, Message, Clinic, Automations } from "@prisma/client"; // Import the generated Task type
@@ -83,6 +83,11 @@ export const AuthenticateUser = async (formData: FormData) => {
     }
 };
 
+
+export const LogoutUser = async () => {
+   await signOut()
+   
+}
 
 
 // Get tasks with an optional taskId filter

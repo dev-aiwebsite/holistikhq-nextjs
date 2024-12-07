@@ -25,6 +25,7 @@ export const authConfig = {
     
       if(isLoggedIn){
         
+        
         if(isOnHome || loginRestrictedPath){
           return Response.redirect(new URL('/dashboard', url));
         } else {

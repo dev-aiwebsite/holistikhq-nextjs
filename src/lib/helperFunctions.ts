@@ -1,6 +1,7 @@
 import { AppStateDataType } from "@app/context/AppStatusContext";
-import { Board, BoardStatus, Task } from "@prisma/client";
+import { Automations, Board, BoardStatus, Task } from "@prisma/client";
 import { differenceInDays, differenceInHours, differenceInMinutes, differenceInSeconds, formatDistanceToNow } from "date-fns";
+import { AutomationActionType, AutomationType, CompleteTaskWithRelations, TaskAddType, TaskAddTypeComplete, TypeBoardComplete, TypeTask } from "./types";
 
 interface NormalizedData {
   boards: Record<string, Board & { BoardStatus: BoardStatus[] }>;
@@ -100,3 +101,107 @@ export const stripHtmlTags = (html: string) => {
   tempDiv.innerHTML = html;
   return tempDiv.textContent || tempDiv.innerText || "";
 };
+
+export const automationChecking = (taskData:TaskAddTypeComplete | TypeTask, boardData:TypeBoardComplete) => {
+  const boardAutomations = boardData.Automations
+  const res = {
+    automationChecks: [] as Record<string,any>[],
+    isTriggerMatch: false,
+    taskData: taskData,
+    automationActions: [] as AutomationActionType[]
+  }
+  if(!boardAutomations) return res
+  const updatedTaskData = {...taskData}
+  const activeAutomations = boardAutomations.filter(a => a.status == "active")
+  const completeStatus = boardData?.BoardStatus?.find(s => s.isComplete || s.name.toLowerCase() == "complete")
+
+  const actions:AutomationActionType[] = []
+
+  activeAutomations.forEach(a => {
+    const isTriggerMatch = a.triggers.every(t => {
+        let isMatch = () => {
+          switch(t.type){
+              case "status":
+                  return taskData.statusId == t.value
+              case "assignee":
+                  return taskData.assigneeId == t.value
+                  
+              case "clinic":
+                  return taskData?.clinicId  == t.value
+  
+              case "task_moved_to_board":
+                  return boardData.id == t.value
+              
+              case "subtasks_completed":
+                  return taskData.subtasks?.every(st => st?.isCompleted)
+  
+              default:
+                  return false
+                          
+          }
+        }
+
+        let checkRes = isMatch()
+        res.automationChecks.push({trigger: t, isMatch: checkRes})
+        return checkRes
+
+    })
+
+    if(isTriggerMatch){
+      res.isTriggerMatch = true
+        a.actions.forEach(a => {
+            switch(a.type){
+              case "mark_as_complete":
+                updatedTaskData.isCompleted = true
+                updatedTaskData.statusId = completeStatus?.id!
+                break
+
+                case "assign_to":
+                    updatedTaskData.assigneeId = a.value
+                    break
+
+                case "change_status":
+                    updatedTaskData.statusId = a.value
+                    break
+                    
+                case "change_due_date":
+                    updatedTaskData.dueDate = new Date(a.value)
+                    break
+                    
+                case "change_description":
+                    updatedTaskData.description = a.value
+                    break
+
+                case "move_to_board":
+                    actions.push(a)
+                    // get the pending status of new board
+                    break;
+
+                case "add_subtask":
+                    actions.push(a)
+                    break;
+
+                case "add_comment":
+                    actions.push(a)
+                    break;
+
+                case "create_task":
+                  actions.push(a)
+                    break;
+
+                case "create_message":
+                  actions.push(a)
+                    break;
+            }
+        })
+    }
+
+  })
+  
+    res.taskData = updatedTaskData,
+    res.automationActions = actions
+  
+
+  return res
+
+}

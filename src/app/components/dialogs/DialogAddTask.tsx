@@ -19,6 +19,7 @@ type DialogAddTaskPropsType = {
 }
 export function DialogAddTask({boardId,triggerContent, isOpen, formDefaultData }: DialogAddTaskPropsType) {
   const [dialogOpen, setDialogOpen] = useState(isOpen)
+  
 
   let triggerEl = <span className={cn("navitem-trigger !text-white bg-app-blue-500 hover:!bg-app-blue-500 hover:opacity-90 !w-fit")}>
       <AddTaskIcon className="main-icon icon" />

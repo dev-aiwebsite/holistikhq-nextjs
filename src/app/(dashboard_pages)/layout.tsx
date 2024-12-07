@@ -82,12 +82,12 @@ export default async function Layout({ children }: { children: React.ReactNode }
         }
     }
       
-    const deletedBoards = await prisma.board.deleteMany({
-        where: {
-          // Example criteria, delete boards with a specific status
-          status: 'inactive',
-        },
-      });
+    // const deletedBoards = await prisma.automations.deleteMany({
+    //     where: {
+    //       // Example criteria, delete boards with a specific status
+    //       status: 'inactive',
+    //     },
+    //   });
 
     
 

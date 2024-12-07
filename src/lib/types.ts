@@ -37,8 +37,8 @@ export interface ExtendedUser extends User {
 
   export type TypeBoardComplete = Board & {
     BoardStatus?: BoardStatus[];
-    Automations?: Automations[];
-    taskTemplate: TaskTemplate[];
+    Automations?: AutomationType[];
+    taskTemplate?: TaskTemplate[];
   }
 
   export type TypeBoardWithStatus = Board & {
@@ -75,17 +75,9 @@ export interface ExtendedUser extends User {
     value: string;
   };
   
-  export type AutomationType = {
-    id: string;
-    name: string;
-    board: Board;
-    boardId: string;
-    triggers?: AutomationTriggerType[]; // Optional array of triggers
-    actions?: AutomationActionType[];   // Optional array of actions
-    createdBy: string;
-    updatedBy?: string;
-    createdAt: Date;
-    updatedAt?: Date;
+  export type AutomationType = Omit<Automations, 'triggers' | 'actions'> & {
+    triggers: AutomationTriggerType[]; // New type for triggers
+    actions: AutomationActionType[];   // New type for actions
   };
 
   export type AutomationAddType = {
@@ -164,14 +156,13 @@ export type BoardStatusAddType = {
 type clinicMeta = Record<string, any>
 export type ClinicAddType = {
   id?:string;
-  createdBy: string;
   name: string;
   description?: string;
-  meta?: clinicMeta;
   icon?: string;
+  meta?: clinicMeta;
   userIds: string[];
+  createdBy: string;
 }
-
 export type TypeClinicComplete = Clinic & {
   users: User[]
 }
@@ -179,7 +170,7 @@ export type TypeClinicComplete = Clinic & {
 export type TypeCurrentUserComplete = User & {
   boards: TypeBoardComplete[];
   conversations: ConversationCompleteType[];
-  clinics: (Clinic & {users: User[]}[]);
+  clinics: (Clinic & { users: User[] })[];
   notifications: Notification[];
 }
 
@@ -208,18 +199,21 @@ export type TaskTemplateAddType = {
 
 export type TaskTemplateComplete = TaskTemplate
 
-export type TaskAddType = {
-  id?: string;
-  name: string;
-  taskLink?: string;
-  description?: string;
-  statusId: string;
-  assigneeId?: string;
-  priority?: string;
-  dueDate?: Date;
-  createdBy: string;
-  updatedBy?: string;
-}
+export type TaskAddType = Partial<Task>
+// export type TaskAddType = {
+//   id?: string;
+//   name: string;
+//   taskLink?: string;
+//   description?: string;
+//   statusId: string;
+//   isCompleted?: boolean;
+//   assigneeId?: string;
+//   clinicId?: string;
+//   priority?: string;
+//   dueDate?: Date;
+//   createdBy: string;
+//   updatedBy?: string;
+// }
 
 export type SubTaskAddType = {
   id?: string;
@@ -227,7 +221,9 @@ export type SubTaskAddType = {
   description?: string;
   statusId: string;
   priority?: string;
+  clinicId?: string;
   dueDate?: Date;
+  isCompleted?: boolean;
   createdBy: string;
   updatedBy?: string;
   parentId:string;
@@ -236,4 +232,25 @@ export type SubTaskAddType = {
 
 export type TaskAddTypeComplete = TaskAddType & {
   subtasks: SubTaskAddType[]
+}
+export type TypeClinicWithUsers = Clinic & {users: User[]}
+export type TypeTaskWithSubtasks = Task & {subtasks: Task[]}
+export type TypeTask = Task & {
+  subtasks: (Task & {
+    status: BoardStatus;
+    assignedTo: true;
+  })[],
+  status: BoardStatus;
+  assignedTo: true;
+}
+
+export type UserAddType = {
+  id?: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  password: string;
+  profileImage?: string;
+  roles: string;
+  clinics: string;
 }

@@ -2,8 +2,8 @@
 import { Conversation } from './../../../node_modules/.prisma/client/index.d';
 import { signIn } from "@lib/auth/auth";
 import prisma from "@lib/db"
-import { AutomationAddType, AutomationType, AutomationUpdateType, BoardAddType, BoardStatusAddType, ClinicAddType, CompleteTaskWithRelations, ConversationAddType, createUserType, MessageAddType, TaskAddTypeComplete, TaskTemplateAddType, TaskTemplateComplete, TypeBoardComplete, TypeBoardWithStatus, TypeClinicComplete } from "@lib/types";
-import {Notification, Task, Board, User, BoardStatus, Prisma, Message, Clinic } from "@prisma/client"; // Import the generated Task type
+import { AutomationActionType, AutomationAddType, AutomationType, AutomationUpdateType, BoardAddType, BoardStatusAddType, ClinicAddType, CompleteTaskWithRelations, ConversationAddType, createUserType, MessageAddType, TaskAddTypeComplete, TaskTemplateAddType, TaskTemplateComplete, TypeBoardComplete, TypeBoardWithStatus, TypeClinicComplete, TypeTask, UserAddType } from "@lib/types";
+import {Notification, Task, Board, User, BoardStatus, Prisma, Message, Clinic, Automations } from "@prisma/client"; // Import the generated Task type
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime/library";
 import bcrypt from 'bcrypt';
 import { NotificationAddType, taskIncludeAll } from "./query";
@@ -27,12 +27,18 @@ export const _getUsers = async (where: Prisma.UserWhereInput, include?: Prisma.U
     return user;
 };
 
-export const _addUser = async (newUserData: createUserType) => {
+export const _addUser = async (newUserData: UserAddType) => {
+    const res = {
+        success: false,
+        message: '',
+        user: null as User | null
+    };
+    
     try {
         // Hash the password before storing it
         const hashedPassword = await bcrypt.hash(newUserData.password, 10);
         if (!newUserData.roles?.length) {
-            newUserData.roles = ['basic']
+            
         }
         const newUser = await prisma.user.create({
             data: {
@@ -40,35 +46,28 @@ export const _addUser = async (newUserData: createUserType) => {
                 lastName: newUserData.lastName,
                 email: newUserData.email,
                 password: hashedPassword,
-                isAdmin: newUserData.isAdmin || false,
-                roles: newUserData.roles,
+                roles: newUserData.roles ? [newUserData.roles] : ['client'],
                 profileImage: newUserData.profileImage,
                 isLogin: false, // Initialize isLogin as false
                 isDeleted: false, // Initialize isDeleted as false
                 clinics: newUserData.clinics
                     ? {
-                        connect: newUserData.clinics, // Connect existing clinics by their IDs
+                        connect: {id: newUserData.clinics}, // Connect existing clinics by their IDs
                     }
                     : undefined, // If clinics are not provided, don't include this field
             },
         });
+        res.success = true;
+        res.user = newUser;
 
-        return newUser;
+        
 
     } catch (error) {
         console.error('Error creating user:', error);
-
-        // Handle unique constraint violation
-        if (error instanceof PrismaClientKnownRequestError && error.code === 'P2002') {
-            const field = error?.meta?.target; // This will be an array of fields that caused the error
-            if (field == 'email') {
-                throw new Error(`Email already exist`);
-            }
-
-        }
-
-        throw new Error('Failed to create user');
+        res.message = `Failed to add User: ${handleError(error)}`; // Use handleError to get the error message 
     }
+
+    return res;
 };
 
 export const AuthenticateUser = async (formData: FormData) => {
@@ -116,6 +115,7 @@ export const _getTasks = async (query: object = {}) => {
 
         res.tasks = task
         res.success = true;
+        console.log(query, '_getTask query')
     } catch (error) {
         res.message = `Failed to fetch tasks: ${handleError(error)}`; // Use handleError to get the error message
     }
@@ -128,35 +128,50 @@ export const _addTask = async (task: TaskAddTypeComplete) => {
     const res = {
         success: false,
         message: '',
-        task: null as Task | null
+        task: null as TypeTask | null
     };
 
     try {
         const newTask = await prisma.task.create({
             data: {
                 id: task.id,
-                name: task.name,
+                name: task.name || "",
                 description: task.description,
                 priority: task.priority,
                 dueDate: task.dueDate,
                 statusId: task.statusId,
-                assigneeId: task.assigneeId,
+                assigneeId: task.assigneeId || undefined,
                 taskLink: task.taskLink,
                 createdBy: task.createdBy,
+                ...(task.subtasks?.length
+                    ? {
+                          subtasks: {
+                              create: task.subtasks.map((subtask) => ({
+                                  id: subtask.id,
+                                  name: subtask.name,
+                                  description: subtask.description,
+                                  dueDate: subtask.dueDate,
+                                  statusId: subtask.statusId,
+                                  assigneeId: subtask.assigneeId,
+                                  createdBy: subtask.createdBy,
+                                  // Add other subtask fields as required
+                              })),
+                          },
+                      }
+                    : {}),
+            },
+            include: {
                 subtasks: {
-                    create: task.subtasks.map((subtask) => ({
-                        id: subtask.id,
-                        name: subtask.name,
-                        description: subtask.description,
-                        dueDate: subtask.dueDate,
-                        statusId: subtask.statusId,
-                        assigneeId: subtask.assigneeId,
-                        createdBy: subtask.createdBy,
-                        // Add other subtask fields as required
-                    })),
+                    include: {
+                        status: true,
+                        assignedTo: true,
+                    }
                 },
+                status: true,
+                assignedTo: true,
             }
         });
+
         res.task = newTask
         res.success = true;
         res.message = `Task ${newTask.name} added successfully.`;
@@ -171,10 +186,11 @@ export const _updateTask = async (taskId: string, updatedTask: Partial<Task>) =>
     const res = {
         success: false,
         message: '',
-        task: null as Task | null
+        task: null as TypeTask | null
     };
 
     try {
+
         const updatedTaskResult = await prisma.task.update({
             where: {
                 id: taskId // Find the task by its ID
@@ -185,15 +201,32 @@ export const _updateTask = async (taskId: string, updatedTask: Partial<Task>) =>
                 priority: updatedTask.priority,
                 dueDate: updatedTask.dueDate,
                 statusId: updatedTask.statusId,
-                assigneeId: updatedTask.assigneeId,
+                assigneeId: updatedTask.assigneeId || null,
                 parentId: updatedTask.parentId,
                 taskLink: updatedTask.taskLink,
                 isCompleted: updatedTask.isCompleted
+            },
+            include: {
+                status: true,
+                assignedTo: true,
+                clinic: {
+                    include: {
+                        users: true
+                    }
+                },
+                subtasks: {
+                    include: {
+                        status: true,
+                        assignedTo: true,
+                    }
+                },
             }
         });
+
         res.task = updatedTaskResult
         res.success = true;
         res.message = `Task ${updatedTaskResult.name} updated successfully.`;
+
     } catch (error) {
         res.message = `Failed to update task: ${handleError(error)}`; // Use handleError to get the error message
     }
@@ -260,16 +293,17 @@ export const _getBoards = async (boardId?: string | string[]) => {
             tasks?: Task[];
         })[];
         users: User[];
+        Automations: Automations[];
     })
     type resType = {
-        boards: resBoardType[];
+        boards: TypeBoardComplete[] | null;
         success: boolean;
         message: string;
     };
 
 
     const res: resType = {
-        boards: [],
+        boards: null,
         success: false,
         message: ''
     };
@@ -283,10 +317,14 @@ export const _getBoards = async (boardId?: string | string[]) => {
                     users: true,
                     BoardStatus: {
                         include: { tasks: true }
-                    }
+                    },
+                    Automations: true
                 }
             });
-            res.boards = board ? [board] : [];
+            if(board){
+                res.boards = [board]
+            }
+            
 
         } else {
             let where = {}
@@ -306,7 +344,8 @@ export const _getBoards = async (boardId?: string | string[]) => {
                     users: true,
                     BoardStatus: {
                         include: { tasks: true }
-                    }
+                    },
+                    Automations: true
                 }
             });
             res.boards = boards;
@@ -398,7 +437,8 @@ export const _addAutomation = async (data: AutomationAddType) => {
 export const _updateAutomation = async (id: string, data: AutomationUpdateType) => {
     const res = {
         success: false,
-        message: 'Not found'
+        message: 'Not found',
+        automation: null as Automations | null
     };
     if (!id) return res
 
@@ -592,7 +632,9 @@ export const _addCLinic = async (data: ClinicAddType) => {
     try {
         const newClinic = await prisma.clinic.create({
             data: {
-                ...data,
+                name:data.name || "",
+                description: data.description || "",
+                createdBy: data.createdBy,
                 users: {
                     connect: data.userIds.map((id) => ({ id })), // Associate users with this conversation
                 },
@@ -757,4 +799,20 @@ export const _addNotification = async (data: NotificationAddType) => {
     }   
 
     return res;
+}
+
+export const _runAutomationActions = async (data:AutomationActionType[])=>{
+
+    const res = {
+        success: false,
+        message: 'Not found',
+        data: null as any | null
+    };
+    if (!data) return res; 
+
+    // create automation action logic
+
+    return res;
+
+
 }

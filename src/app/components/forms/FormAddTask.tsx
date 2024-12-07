@@ -4,13 +4,13 @@ import { useForm, Controller } from "react-hook-form";
 import { DatePickerWithPresets } from "@app/components/ui/datepicker";
 import { SelectScrollable } from "../ui/select";
 import RichTextEditor from "../RichTextEditor";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAppStateContext } from "@app/context/AppStatusContext";
 import { _addTask } from "@lib/server_actions/database_crud";
-import { CompleteTaskWithRelations, TypeBoardComplete } from "@lib/types";
+import { CompleteTaskWithRelations, SubTaskAddType, TaskAddTypeComplete, TypeBoardComplete, TypeTask } from "@lib/types";
 import TaskNameInput from '../ui/TaskNameInput';
 import UserList from '../UserList';
-import { priorityOptions } from '@lib/const';
+import { mainBoards, priorityOptions } from '@lib/const';
 import { Button } from '../ui/button';
 import { WandSparkles } from 'lucide-react';
 import { cn } from '@lib/utils';
@@ -34,25 +34,42 @@ type TypeFormAddTask = {
     statusId?: string;
     onCancel?: () => void;
     overrideSubmit?: boolean
-    onSubmit?: (data: CompleteTaskWithRelations) => void;
+    onSubmit?: (data: TypeTask) => void;
     buttonOutside?: boolean;
     className?: string;
     templateId?:string;
     defaultData?: TypeAddTaskdefaultData;
 }
-const FormAddTask = ({defaultData, templateId, className, buttonOutside, boardId, statusId, onCancel, onSubmit, overrideSubmit = false }: TypeFormAddTask) => {
-    const { appState, setappState, addTask } = useAppStateContext();
+
+const defaultFormData = {
+    name: "",
+    description: "",
+    statusId: "",
+    priority: "",
+    dueDate: undefined,
+    assigneeId: "",
+    taskLink: "",
+    clinicId: "",
+}
+
+const FormAddTask = ({defaultData = defaultFormData, templateId, className, buttonOutside, boardId, statusId, onCancel, onSubmit, overrideSubmit = false }: TypeFormAddTask) => {
+    const { appState, setappState, addTask, boards, clinics } = useAppStateContext();
     const formRef = useRef<HTMLFormElement | null>(null)
     const [selectedTemplate, setSelectedTemplate] = useState(templateId)
     const [board_id, setBoard_id] = useState(boardId)
     const [newSubtaskList, setNewSubtaskList] = useState<Task[] | null>(null)
+    const isClient = useMemo(()=>{
+        return appState.currentUser.roles.includes('client')
+    },[appState.currentUser.roles])
 
-    const currentUser = appState.currentUser;
-    const boards = currentUser?.boards;
-    const clinics = appState.clinics
+    const isMainBoard = useMemo(()=>{
+        return mainBoards.some(b => b.id == board_id)
+    },[board_id])
+
     const board = board_id ? boards.find(b => b.id == board_id) : boards[0] 
     const templates = board?.taskTemplate
     let useDefaultValues = defaultData
+    const taskId = createId()
     
     useEffect(()=> {
         setSelectedTemplate(templateId)
@@ -60,17 +77,36 @@ const FormAddTask = ({defaultData, templateId, className, buttonOutside, boardId
     },[templateId])
 
     if(selectedTemplate && selectedTemplate != 'new' ){
+        if(!board || !board.taskTemplate) return
         console.log(templateId, 'templateId inside selectedTemplate')
         const templateData = board?.taskTemplate.find(t => t.id == selectedTemplate)?.data
-        console.log(templateData, 'templateData')
         if(templateData){
             useDefaultValues = templateData.task
-            
         }
     }
 
-    console.log(selectedTemplate, 'selectedTemplate')
+    if(isClient){
+        defaultData.clinicId = appState.currentUser.clinics[0].id
+    }
+
+
+
+    const pendingStatusId = useMemo(()=>{
+        if(!board?.BoardStatus) return 
+        let pendingStatusId = board.BoardStatus.find(bs => bs.name.toLowerCase() == "pending")?.id
+        
+        if(!pendingStatusId){
+            board.BoardStatus[0].id
+        }
+        return pendingStatusId
+
+    },[boardId, board_id])
+
+    if(!defaultData.statusId){
+        defaultData.statusId = pendingStatusId
+    }
     
+
     const defaultValues = {
         id: "",
         name: useDefaultValues?.name,
@@ -89,13 +125,10 @@ const FormAddTask = ({defaultData, templateId, className, buttonOutside, boardId
         defaultValues,
     });
 
-    useEffect(() => {
-        form.reset(defaultValues); // Dynamically update the form with new values
-      }, [useDefaultValues]);
-
     let boardStatusOptions = [
         { text: 'Set Status', value: '' },
     ]
+    
 
     if (board && board.BoardStatus) {
         const statuses = board.BoardStatus
@@ -108,9 +141,17 @@ const FormAddTask = ({defaultData, templateId, className, buttonOutside, boardId
         })
     }
 
-    function handleOnSubmit(data: CompleteTaskWithRelations) {
+    
+
+    useEffect(() => {
+        form.reset(defaultValues); // Dynamically update the form with new values
+      }, [useDefaultValues]);
+
+    
+
+    function handleOnSubmit(data: TaskAddTypeComplete) {
         // Generate the ID in the frontend
-        const taskId = createId()
+        if(!data.clinicId) return
         data.id = taskId
         if (onSubmit) {
             onSubmit(data)
@@ -119,12 +160,16 @@ const FormAddTask = ({defaultData, templateId, className, buttonOutside, boardId
         console.log(data, 'addtask data')
         console.log(newSubtaskList, 'new subtask list data')
 
-        const subtasks:Task[] | null = newSubtaskList ? newSubtaskList.map(s => {
+        const subtasks:SubTaskAddType[] | null = newSubtaskList ? newSubtaskList.map(s => {
             return {
                 ...s,
                 parentId: taskId,
                 statusId: boardStatusOptions[0].value,
-                clinicId: data.clinicId
+                clinicId: data.clinicId as string | undefined,
+                description: data.description || undefined,
+                dueDate: data.dueDate || undefined,
+                isCompleted: data.isCompleted || undefined,
+                assigneeId: data.assigneeId || undefined
             }
         }) : null
         
@@ -204,7 +249,7 @@ const FormAddTask = ({defaultData, templateId, className, buttonOutside, boardId
                                   
                             </div>
 
-                            {!templateId && <div className='ml-auto w-fit'>
+                            {!(isClient && isMainBoard) && !templateId && <div className='ml-auto w-fit'>
                                 <SelectScrollable className="w-fit"
                                     icon={<WandSparkles className='mr-2' size={16} strokeWidth={1} />}
                                     placeholder='Select Template'
@@ -217,7 +262,7 @@ const FormAddTask = ({defaultData, templateId, className, buttonOutside, boardId
                         </div>
                     </div>
                     <div className="flex flex-row gap-6 [&_.td]:!min-w-[5rem] [&_.td.label]:!text-gray-500 [&_.td.label]:!font-medium">
-                        <div className="table h-fit">
+                        <div className="grid grid-flow-col gap-x-4 gap-y-2 grid-rows-3 h-fit">
                             {!boardId &&
                                 <div className="FormControl tr">
                                     <span className="td label">Board</span>
@@ -236,7 +281,7 @@ const FormAddTask = ({defaultData, templateId, className, buttonOutside, boardId
                                     </div>
                                 </div>
                             }
-                            {board && <>
+                            {!(isClient && isMainBoard) && board && <>
                                 <div className="FormControl tr">
                                     <span className="td label">Clinic</span>
                                     <div className="td">
@@ -256,7 +301,7 @@ const FormAddTask = ({defaultData, templateId, className, buttonOutside, boardId
 
                                     </div>
                                 </div>
-                                <div className="FormControl tr">
+                                {!(isClient && isMainBoard) && <div className="FormControl tr">
                                     <span className="td label">Assignee</span>
                                     <div className="td">
                                         <Controller
@@ -271,12 +316,13 @@ const FormAddTask = ({defaultData, templateId, className, buttonOutside, boardId
                                             )}
                                         />
                                     </div>
-                                </div>
+                                </div>}
 
                             </>}
-                        </div>
-                        <div className="table h-fit">
+                 
                             {board && <>
+
+                                {!(isClient && isMainBoard) &&
                                 <div className="FormControl tr">
                                     <span className="td label">Status</span>
                                     <div className="td">
@@ -293,7 +339,7 @@ const FormAddTask = ({defaultData, templateId, className, buttonOutside, boardId
                                             )}
                                         />
                                     </div>
-                                </div>
+                                </div>}
 
                                 <div className="FormControl tr">
                                     <span className="td label">Due date</span>
@@ -347,7 +393,7 @@ const FormAddTask = ({defaultData, templateId, className, buttonOutside, boardId
                 </form>
                 <div>
                 {boardId && 
-                        <SubtaskSection onNewSubtaskUpdate={setNewSubtaskList} />
+                        <SubtaskSection taskId={taskId}  onNewSubtaskUpdate={setNewSubtaskList} />
                     }
                 </div>
                 </div>

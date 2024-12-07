@@ -8,27 +8,28 @@ import { Card, CardHeader, CardContent } from "@app/components/dndComponents/ui/
 import { cva } from "class-variance-authority";
 import { cn } from "@lib/utils";
 import ProfileAvatar from "../ui/ProfileAvatar";
-import { useDrawerContext } from "@app/context/DrawerContext";
-import { useRouter } from "next/navigation";
 import { useAppStateContext } from "@app/context/AppStatusContext";
-import { CompleteTaskWithRelations } from "@lib/types";
+import { TypeTask } from "@lib/types";
+import { useMemo } from "react";
 
 interface TaskCardProps {
-  task: CompleteTaskWithRelations;
+  task: TypeTask;
   isOverlay?: boolean;
   className?: string;
   onClick?: () => void;
+  isDragDisable?:boolean;
 }
 
 export type TaskType = "Task";
 
 export interface TaskDragData {
   type: TaskType;
-  task: CompleteTaskWithRelations;
+  task: TypeTask;
 }
 
-export function TaskCard({ task, isOverlay, className, onClick }: TaskCardProps) {
-  const {appState} = useAppStateContext()
+export function TaskCard({isDragDisable, task, isOverlay, className, onClick }: TaskCardProps) {
+  const {appState, clinics} = useAppStateContext()
+
   const {
     setNodeRef,
     attributes,
@@ -41,7 +42,8 @@ export function TaskCard({ task, isOverlay, className, onClick }: TaskCardProps)
     data: {
       type: "Task",
       task,
-    } satisfies TaskDragData,
+    },
+    disabled: isDragDisable,
     attributes: {
       roleDescription: "Task",
     },
@@ -79,7 +81,7 @@ export function TaskCard({ task, isOverlay, className, onClick }: TaskCardProps)
   const taskAuthor = appUsers.find(u => u.id == task.createdBy)
   const taskAssigneeName = `${taskAssignee?.firstName} ${taskAssignee?.lastName}`
   const taskAuthorName = `${taskAuthor?.firstName} ${taskAuthor?.lastName}`
-  const taskClinicName = task?.clinics?.[0]?.name
+  const taskClinicName = clinics.find(c => c.id == task.clinicId)?.name || ""
 
   return (
     <Card

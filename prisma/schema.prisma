@@ -33,7 +33,7 @@ model User {
   updatedTasks      Task[]         @relation("UpdatedTasks")
   isLogin           Boolean?
   lastLogin         DateTime?
-  roles             String[]
+  roles             String[]       @default(["client"])
   profileImage      String?
   collaborations    Collaborator[]
   clinics           Clinic[]       @relation(name: "ClinicToUser")
@@ -89,7 +89,8 @@ model Task {
   description  String?
   isCompleted  Boolean?       @default(false)
   status       BoardStatus    @relation("TaskStatus", fields: [statusId], references: [id]) // Using BoardStatus for task status
-  statusId     String // Foreign key to the BoardStatus
+  statusId     String
+  boardId      String         @default("")
   priority     String         @default("low") // 'Low', 'Medium', 'High', etc.
   dueDate      DateTime?
   createdBy    String
@@ -105,7 +106,7 @@ model Task {
   collaborator Collaborator[]
   clinic       Clinic?        @relation(name: "ClinicToTask", fields: [clinicId], references: [id])
   clinicId     String?
-  comments     Conversation[] @relation("taskComments")
+  conversation Conversation?  @relation("taskComments")
 }
 
 model Collaborator {
@@ -122,6 +123,7 @@ model Collaborator {
 model Automations {
   id        String   @id @default(cuid())
   name      String
+  status    String   @default("active")
   board     Board    @relation("BoardAutomations", fields: [boardId], references: [id], onDelete: Cascade)
   boardId   String
   triggers  Json?
@@ -137,7 +139,7 @@ model Conversation {
   status      String    @default("active")
   type        String?   @default("private")
   task        Task?     @relation("taskComments", fields: [taskId], references: [id])
-  taskId      String? // Optional field, change to `String` if required
+  taskId      String?   @unique
   name        String?
   description String?
   icon        String?

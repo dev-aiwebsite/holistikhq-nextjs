@@ -1,7 +1,7 @@
 "use client"
-import { ChartSplineIcon, ChevronFirst, MessageSquareWarning, Plus, SquareKanbanIcon } from "lucide-react";
+import { ChartSplineIcon, ChevronFirst, ListTodo, MessageSquareWarning, NotebookPen, Plus, SquareKanbanIcon, UserRoundPlus } from "lucide-react";
 import Image from "next/image";
-import { Key, useState } from "react";
+import { Key, ReactNode, useState } from "react";
 import { DashboardIcon } from "@radix-ui/react-icons";
 import { cn } from "@lib/utils";
 
@@ -28,10 +28,10 @@ import { Button } from "./button";
 import FormAddTask from "../forms/FormAddTask";
 import { DialogAddTask } from "../dialogs/DialogAddTask";
 import { DialogAddBoard } from "../dialogs/DialogAddBoard";
+import NavItem from "./NavItem";
 
 
 const Sidebar = ({ searchParams }: { searchParams?: { [key: string]: string } }) => {
-
     const { isOpen, openDrawer, closeDrawer, content } = useDrawerContext()
     const pathname = usePathname()
     const [isCollapsed, setIsCollapsed] = useState(false)
@@ -44,6 +44,12 @@ const Sidebar = ({ searchParams }: { searchParams?: { [key: string]: string } })
     const { appState } = useAppStateContext()
     const currentUser = appState.currentUser
     const boards = currentUser.boards
+
+
+    const dialogAddTaskConfig = appState.currentUser.roles.includes('client') ? {
+        text: 'Request Task'
+    } : undefined
+    
 
     return (
         <div className={cn("sidebar bg-app-green-400 flex flex-col flex-nowrap", isCollapsed && 'collapsed')}>
@@ -59,71 +65,29 @@ const Sidebar = ({ searchParams }: { searchParams?: { [key: string]: string } })
                 </Image>
             </div>
             <button className="navitem">
-                <DialogAddTask />
+                <DialogAddTask triggerContent={dialogAddTaskConfig} />
             </button>
 
             <ul className="navlist">
-                <li className="navitem">
-                    <Link className={cn("navitem-trigger", pathname == '/dashboard' ? 'active' : '')}
-                        href="/dashboard">
-                        <DashboardIcon className="main-icon icon" />
-                        <span className="title text-current">Dashboard</span>
-                    </Link>
-                </li>
-                <li className="navitem">
-                    <Accordion type="single" collapsible>
-                        <AccordionItem value="item-1" >
-                            <div className="relative group">
-                                <AccordionTrigger className={cn("navitem-trigger group-hover:[&_>svg]:hidden", pathname == '/board' ? 'active' : '')}>
-                                    <span className="flex items-center flex-nowrap">
-                                        <SquareKanbanIcon className="main-icon icon" />
-                                        <span className="title text-current">Boards</span>
-                                    </span>
-
-                                </AccordionTrigger>
-
-                                <div className="absolute top-1/2 right-2 -translate-y-1/2 hidden group-hover:block">
-                                  <DialogAddBoard />
-                                </div>
-                            </div>
-                            <AccordionContent>
-                                <ul className="submenu">
-                                    {boards && boards.map((board) => (<li key={board.id} className="submenu-navitem">
-                                        <Link className={cn("navitem-trigger", pathname == '' ? 'active' : '')}
-                                            href={`/board/${board.id}`}>
-                                            {board.name}
-                                        </Link>
-                                    </li>))}
-                                </ul>
-                            </AccordionContent>
-                        </AccordionItem>
-                    </Accordion>
-                </li>
-                <li className="navitem">
-                    <Link className={cn("navitem-trigger", pathname == '/messages' ? 'active' : '')}
-                        href="/messages">
-                        <MessageIcon className="main-icon icon" />
-                        <span className="title text-current">Messages</span>
-                    </Link>
-                </li>
-                <li className="navitem">
-                    <Link className={cn("navitem-trigger", pathname == '/analytics' ? 'active' : '')}
-                        href="/analytics">
-                        <ChartSplineIcon className="main-icon icon" />
-                        <span className="title text-current">Analytics</span>
-                    </Link>
-                </li>
-
-
+                <NavItem link="/dashboard" title={"Dashboard"} icon={<DashboardIcon/>} />
+                <NavItem link="/board" title={"Boards"} icon={<SquareKanbanIcon />} collapsible>
+                    {boards && boards.map((board) => (
+                        <NavItem isSubmenuItem key={board.id} link={`/board/${board.id}`} title={board.name} icon={<BoardIcon icon={board.icon} name={board.name} color={board.color}/>} />
+                       
+                    ))}
+                </NavItem>
+                {currentUser.roles.includes('client') && <NavItem link="/mytodo" title={"My To Do"} icon={<NotebookPen/>} />}
+                <NavItem link="/messages" title={"Messages"} icon={<MessageIcon/>} />
+                <NavItem link="/analytics" title={"Analytics"} icon={<ChartSplineIcon/>} />
+                <NavItem link="/users" title={"Users"} icon={<UserRoundPlus/>} />
             </ul>
-
             <div className="mt-auto bg-app-blue-500">
                 <ul className="space-y-2 p-[calc(var(--sidebar-padding)_/_2)]">
                     <li>
                         <Link className={cn("navitem-trigger flex flex-row flex-wrap-nowrap items-center gap-4")}
                             href="#">
 
-                            <ProfileAvatar name={getInitials(`${currentUser.firstName} ${currentUser.lastName}`)} src={currentUser.profileImage} />
+                            <ProfileAvatar name={getInitials(`${currentUser.firstName} ${currentUser.lastName}`)} src={currentUser.profileImage || undefined} />
 
                             <span className="title text-white capitalize">{currentUser.firstName}</span>
                         </Link>
@@ -154,3 +118,28 @@ const Sidebar = ({ searchParams }: { searchParams?: { [key: string]: string } })
 }
 
 export default Sidebar;
+
+const BoardIcon = ({name,color,icon}:{name:string,color:string,icon?:ReactNode}) => {
+    
+    // const istext = icon ? typeof(icon) == "string" : false
+    const istext = true
+    let text = ""
+    // if(!icon){
+        text = name[0]
+    // } else if(istext){
+        
+            // text = (icon as string).split(" ").map(i => i[0]).slice(0,2).join("")
+    // }
+    return <>
+        <span style={{backgroundColor: `${color}` }} className="rounded flex items-center justify-center aspect-square text-white">
+            {istext ?
+                <span className="text-sm">
+                    {text}        
+                </span>
+
+                : icon
+            }
+        </span>
+    
+    </>
+}

@@ -4,38 +4,69 @@ import { CircleCheck, Plus } from "lucide-react";
 import { DatePickerWithPresets } from "../ui/datepicker";
 import { Button } from "../ui/button";
 import UserList from "../UserList";
-import { FormEvent, useEffect, useRef, useState } from "react";
-import { CompleteTaskWithRelations } from "@lib/types";
-import { Task } from "@prisma/client";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { CompleteTaskWithRelations, TaskAddType, TaskAddTypeComplete, TypeBoardComplete, TypeTask } from "@lib/types";
+import { BoardStatus, Task } from "@prisma/client";
 import { createId } from "@paralleldrive/cuid2";
 import { useAppStateContext } from "@app/context/AppStatusContext";
 import { _updateTask } from "@lib/server_actions/database_crud";
+import { ValueOf } from "next/dist/shared/lib/constants";
 
 type SubtaskSectionType = {
-    taskId?: string;
-    task?: CompleteTaskWithRelations;
+    taskId: string;
     subtasks?: Task[];
     onNewSubtaskUpdate?: (newSubTaskList:Task[]) => void;
 }
-export const SubtaskSection = ({onNewSubtaskUpdate, task}: SubtaskSectionType) => {
-    const [newSubtasksList, setNewSubtasksList] = useState<Task[]>([])
+export const SubtaskSection = ({onNewSubtaskUpdate, taskId}: SubtaskSectionType) => {
+    const [newSubtasksList, setNewSubtasksList] = useState<TypeTask[]>([])
     const [showNewSubtaskForm, setShowNewSubtaskForm] = useState(false)
     const newSubtaskInputRef = useRef<HTMLInputElement | null>(null);
-    const { appState } = useAppStateContext()
+    const { appState, tasks, updateTask, boards } = useAppStateContext()
+    
     const currentUserId = appState.currentUser.id
+    
+    
+    const task = useMemo(()=>{
+      return  tasks?.find(i => i.id == taskId)
+    },[tasks, taskId])
 
+    const subtasks = useMemo(() => {
+        return tasks?.filter(t => t.parentId === taskId);
+      }, [tasks, taskId]);
 
+    
+    
     useEffect(() => {
         if (showNewSubtaskForm && newSubtaskInputRef.current) {
             newSubtaskInputRef.current.focus();
         }
     }, [showNewSubtaskForm]);
 
+    console.log(subtasks, 'subtasks here')
+    let boardId:string | null,
+    board:TypeBoardComplete | undefined,
+    boardStatuses:BoardStatus[] | undefined,
+    boardStatusComplete:BoardStatus | undefined
+
+    if(task && subtasks?.length){
+        boardId = subtasks[0].status.boardId
+        if (!boardId) return
+         board = boards.find(b => b.id == boardId)
+         boardStatuses = board?.BoardStatus
+
+         if(boardStatuses){
+             boardStatusComplete = boardStatuses.find(b => b.isComplete) || boardStatuses.find(b => b.name.toLowerCase() == 'complete')
+         }
+        if(!boardStatusComplete){
+            console.error("Can't render subtask: no complete status")
+            return 
+        }
+    }
 
     function handleAddNewToList() {
 
         const newId = createId()
-        const newData: Task = {
+        const newData: Partial<TaskAddTypeComplete> = {
             id: newId,
             name: "",
             description: "",
@@ -58,7 +89,7 @@ export const SubtaskSection = ({onNewSubtaskUpdate, task}: SubtaskSectionType) =
         console.log(newData, 'new subtasks added')
     }
 
-    function handleUpdateSubtask(id: string, field: keyof Task, value: any) {
+    function handleUpdateNewSubtask(id: string, field: keyof Task, value: any) {
         setNewSubtasksList((prevData) => {
           const updatedList = prevData.map((subtask) =>
             subtask.id === id ? { ...subtask, [field]: value } : subtask
@@ -71,7 +102,53 @@ export const SubtaskSection = ({onNewSubtaskUpdate, task}: SubtaskSectionType) =
           return updatedList;
         });
       }
+      
 
+      const handleUpdateSubtask = <T extends keyof TypeTask>(subtaskId: string, field: T, value: TypeTask[T]) => {
+        console.log(`Updating task with ID: ${taskId}${field}:${value}...`);
+        // You can replace this with your actual update logic
+        if(!subtaskId || !subtasks) return
+        const subtaskData = subtasks.find(st => st.id == subtaskId)
+        const taskData:TypeTask = {...subtaskData}
+        taskData[field] = value
+        console.log(taskData, 'updated data')
+        updateTask(taskData)
+    };
+    
+    function handleNameOnBlur(taskId: string,field:string,event:React.FocusEvent<HTMLInputElement, Element>){
+        console.log(event)
+        console.log(`updating task id:${taskId}`)
+        const value = event.target.value
+        if(!value) return
+        console.log(`updating task id:${taskId} ${field}:${value}`)
+    }
+
+    function markAsComplete(subtaskId:string){
+        if(!subtaskId || !subtasks) return
+        const subtaskData = subtasks.find(st => st.id == subtaskId)
+        const taskData:TypeTask = {
+            ...subtaskData,
+            statusId:boardStatusComplete!.id,
+            isCompleted:true
+        }
+        updateTask(taskData)
+        console.log(taskData, 'updated data')
+    
+    }
+
+    function markAsInComplete(subtaskId:string){
+        
+        // _updateTask(taskId, {statusId:boardStatuses![0].id,isCompleted:false})
+        if(!subtaskId || !subtasks) return
+        const subtaskData = subtasks.find(st => st.id == subtaskId)
+        const taskData:TypeTask = {
+            ...subtaskData,
+            statusId:boardStatuses![0].id,
+            isCompleted:false
+        }
+        updateTask(taskData)
+        console.log(taskData, 'updated data')
+    }
 
     return (<>
 
@@ -99,7 +176,7 @@ export const SubtaskSection = ({onNewSubtaskUpdate, task}: SubtaskSectionType) =
                                 name="name"
                                 value={subtask.name} // Controlled input
                                 onChange={(e) =>
-                                    handleUpdateSubtask(subtask.id, "name", e.target.value)
+                                    handleUpdateNewSubtask(subtask.id, "name", e.target.value)
                                 }
                             />
 
@@ -108,7 +185,7 @@ export const SubtaskSection = ({onNewSubtaskUpdate, task}: SubtaskSectionType) =
                                     variant="icon"
                                     value={subtask.assigneeId || undefined}
                                     onChange={(value) =>
-                                        handleUpdateSubtask(subtask.id, "assigneeId", value)
+                                        handleUpdateNewSubtask(subtask.id, "assigneeId", value)
                                     }
                                 />
                                 <DatePickerWithPresets
@@ -116,7 +193,7 @@ export const SubtaskSection = ({onNewSubtaskUpdate, task}: SubtaskSectionType) =
                                     className=""
                                     value={subtask.dueDate || undefined}
                                     onSelect={(value) =>
-                                        handleUpdateSubtask(subtask.id, "dueDate", value)
+                                        handleUpdateNewSubtask(subtask.id, "dueDate", value)
                                     }
                                 />
                             </div>
@@ -124,66 +201,7 @@ export const SubtaskSection = ({onNewSubtaskUpdate, task}: SubtaskSectionType) =
                     </form>
                 ))}
 
-            {task && <SubtaskList task={task} />}
-
-        </div>
-    </>)
-}
-
-const SubtaskList = ({ task }: { task: CompleteTaskWithRelations }) => {
-    if (!task) return
-    const { appState } = useAppStateContext()
-    const taskId = task.id
-    const [subtasks, setSubtask] = useState(task.subtasks)
-    console.log(subtasks, 'subtasks')
-    if(!subtasks) return
-    const boardId = task.status.boardId
-    if (!boardId && !taskId) return
-    const board = appState.currentUser.boards.find(b => b.id == boardId)
-    const boardStatuses = board?.BoardStatus
-
-
-    if (!boardStatuses?.length) return
-    const boardStatusComplete = boardStatuses.find(b => b.isComplete) || boardStatuses.find(b => b.name.toLowerCase() == 'complete')
-    if(!boardStatusComplete){
-        console.error("Can't render subtask: no complete status")
-        return 
-    }
-    // Function to run your update task
-    const updateTask = (taskId: string,field:string,value:any) => {
-        console.log(`Updating task with ID: ${taskId}${field}:${value}...`);
-        // You can replace this with your actual update logic
-    };
-    
-    function handleNameOnBlur(taskId: string,field:string,event:React.FocusEvent<HTMLInputElement, Element>){
-        console.log(event)
-        console.log(`updating task id:${taskId}`)
-        const value = event.target.value
-        if(!value) return
-        console.log(`updating task id:${taskId} ${field}:${value}`)
-    }
-
-    function markAsComplete(taskId:string){
-        if(!taskId) return
-        _updateTask(taskId, {statusId:boardStatusComplete!.id,isCompleted:true})
-        .then(res => console.log(res))
-        .catch(err => {
-            console.error(err)
-        })
-    }
-
-    function markAsInComplete(taskId:string){
-        if(!taskId) return
-        _updateTask(taskId, {statusId:boardStatuses![0].id,isCompleted:false})
-        .then(res => console.log(res))
-        .catch(err => {
-            console.error(err)
-        })
-    }
-
-    return <>
-        {subtasks.map((subtask) => (
-
+            {(subtasks && subtasks?.length > 0) &&  subtasks.map((subtask) => (
             <form action="" key={subtask.id} >
                 <div className="group focus-within:bg-app-brown-200 hover:bg-app-brown-200 w-full flex flex-row flex-nowrap items-center gap-2 p-2">
                     {subtask.status.isComplete ?
@@ -194,12 +212,14 @@ const SubtaskList = ({ task }: { task: CompleteTaskWithRelations }) => {
                         className="text-gray-600 text-sm w-72 p-1 bg-transparent focus:bg-white ring-0 border-none outline-none"
                         type="text" placeholder="Task name" name="name" defaultValue={subtask.name} onBlur={(e)=>handleNameOnBlur(subtask.id,'name',e)}/>
                     <div className="ml-auto flex flex-row flex-nowrap gap-2 items-center">
-                        <UserList variant="icon" onChange={(v)=>updateTask(subtask.id,'assigneeId',v)} value={subtask.assigneeId} />
-                        <DatePickerWithPresets onSelect={(v)=>updateTask(subtask.id,'dueDate',v)} variant="icon" className="" value={subtask.dueDate || undefined} />
+                        <UserList variant="icon" onChange={(v)=>handleUpdateSubtask(subtask.id,'assigneeId', v)} value={subtask.assigneeId || undefined} />
+                        <DatePickerWithPresets onSelect={(v)=>handleUpdateSubtask(subtask.id,'dueDate', v || null)} variant="icon" className="" value={subtask.dueDate || undefined} />
                     </div>
                 </div>
             </form>
         )
         )}
-    </>
+
+        </div>
+    </>)
 }

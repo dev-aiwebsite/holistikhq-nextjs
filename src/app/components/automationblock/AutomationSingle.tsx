@@ -11,25 +11,30 @@ import {
 import { SelectScrollable } from "../ui/select";
 import TriggerCard from "./TriggerCard";
 import { Button } from "../ui/button";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { triggersList } from "@lib/const";
 import ActionCard from "./ActionCard";
 import { _updateAutomation } from "@lib/server_actions/database_crud";
+import { Automations } from "prisma/prisma-client";
 
 type SingleAutomationProps = {
     boardId: string;
     automationId: string;
     onOpenChange?: () => void;
+    isOpen?:boolean;
 }
-const SingleAutomation = ({ boardId, automationId, onOpenChange }: SingleAutomationProps) => {
+const SingleAutomation = ({ boardId, automationId, onOpenChange, isOpen }: SingleAutomationProps) => {
     console.log(`open singleAutomation ${automationId}`)
-    const { appState, setappState } = useAppStateContext()
-    const boardData = appState.currentUser.boards.find(board => board.id == boardId)
+    const { appState, boards, updateBoard } = useAppStateContext()
+    const [dialogOpen,setDialogOpen] = useState(isOpen)
+    const boardData = boards.find(board => board.id == boardId)
+    if(!boardData || !boardData.Automations) return
     const automationData = boardData?.Automations.find(a => a.id == automationId)
     const automationTriggers = automationData?.triggers || []
     const automationActions = automationData?.actions || []
     const [triggers,setTriggers] = useState(automationTriggers)
     const [actions,setActions] = useState(automationActions)
+    const [automationName, setAutomationName] = useState(automationData.name)
 
     const handleAddTrigger = () => {
         const newTrigger = {
@@ -77,74 +82,61 @@ const SingleAutomation = ({ boardId, automationId, onOpenChange }: SingleAutomat
       const handleSaveAutomation = () => {
         console.log('saving automation');
     
-        // Find the current automation in the appState to compare before updating
-        const board = appState.currentUser.boards.find(board => board.id == boardId);
-        if (!board) {
-            console.log('Board not found.');
-            return;
-        }
-    
-        const currentAutomation = board.Automations.find(a => a.id == automationId);
-        if (!currentAutomation) {
-            console.log('Automation not found.');
-            return;
-        }
-    
+        
         // Prepare the new data for comparison
         const newAutomationData = {
-            ...currentAutomation,
-            triggers: [...triggers], // New state of triggers
-            actions: [...actions]    // New state of actions
+            ...automationData,
+            triggers: [...triggers],
+            actions: [...actions],
+            updatedBy: appState.currentUser.id,
+            name: automationName,
         };
     
         // Compare new data with current data
-        const isDataChanged = JSON.stringify(currentAutomation.triggers) !== JSON.stringify(newAutomationData.triggers) ||
-                              JSON.stringify(currentAutomation.actions) !== JSON.stringify(newAutomationData.actions);
+        const isDataChanged = JSON.stringify(automationTriggers) !== JSON.stringify(newAutomationData.triggers) ||
+                              JSON.stringify(automationActions) !== JSON.stringify(newAutomationData.actions) || 
+                              automationData.name !== automationName
     
         // If no changes, do not update the state or call the API
         if (!isDataChanged) {
             console.log('No changes detected. Skipping update.');
-            return; // Exit early if no changes are detected
+            return;
         }
     
-        // Update the automation data in the appState only if changes are detected
-        setappState(prevAppState => {
-            const updatedAppState = { ...prevAppState };
-            const boardIndex = updatedAppState.currentUser.boards.findIndex(board => board.id == boardId);
-            if (boardIndex === -1) return prevAppState;
-    
-            const automationIndex = updatedAppState.currentUser.boards[boardIndex].Automations.findIndex(a => a.id == automationId);
-            if (automationIndex === -1) return prevAppState;
-    
-            // Update triggers and actions in the automation
-            updatedAppState.currentUser.boards[boardIndex].Automations[automationIndex] = newAutomationData;
-    
-            return updatedAppState;
-        });
-    
-        // Call the API to update the automation with the new data
-        const newData = {
-            triggers: [...triggers],
-            actions: [...actions],
-            updatedBy: appState.currentUser.id
-        };
-    
-        _updateAutomation(automationId, newData)
+        const newAutomations = [...boardData.Automations!]
+        const index = newAutomations.findIndex((a) => a.id === automationId);
+        newAutomations[index] = {...newAutomations[index],...newAutomationData}
+
+        updateBoard(boardId,{Automations: newAutomations})
+
+        setDialogOpen(false)
+
+        _updateAutomation(automationId, newAutomationData)
         .then(res => {
             console.log(res, 'res _updateAutomation');
         })
         .catch(err => {
             console.log(err, '_updateAutomation');
         });
+
+
 };
     
-    
+
+function handleOpenChange(){
+    onOpenChange && onOpenChange()
+}
+    useEffect(()=>{
+        if(dialogOpen == isOpen) return
+        setDialogOpen(isOpen)
+    },[isOpen])
 
     return (
-        <Dialog onOpenChange={() => onOpenChange && onOpenChange()} defaultOpen={true} >
+     
+        <Dialog open={dialogOpen} onOpenChange={handleOpenChange} > 
             <DialogContent className="w-[90vw] h-[90dvh] flex flex-col">
                 <DialogHeader>
-                    <DialogTitle><input type="text" name="name" defaultValue={automationData.name} /></DialogTitle>
+                    <DialogTitle><input type="text" name="name" value={automationName} onChange={(e)=>setAutomationName(e.target.value)} /></DialogTitle>
                 </DialogHeader>
                 <div className="relative dotted-bg flex-1 grid grid-cols-2 !py-0 *:py-6">
                     <div className="scrollbar-none border-stone-300 border-r pl-10 pr-28 max-h-[74dvh] overflow-auto">
@@ -180,7 +172,7 @@ const SingleAutomation = ({ boardId, automationId, onOpenChange }: SingleAutomat
                                     <p className="text-sm text-gray-400">Do this actions...</p>
                                 </div>
                             </div>
-                            {actions.map((action,indx) => (<ActionCard key={action.type + indx} actionType={action.type} value={action.value} onChange={(v)=>handleActionUpdate(v,indx)} />))}
+                            {actions.map((action,indx) => (<ActionCard boardId={boardId} key={action.type + indx} actionType={action.type} value={action.value} onChange={(v)=>handleActionUpdate(v,indx)} />))}
                             <Button onClick={handleAddActions} variant="outline" size="icon" className="mx-auto flex shadow-lg">
                                 <Plus size={16} />
                             </Button>
@@ -188,7 +180,7 @@ const SingleAutomation = ({ boardId, automationId, onOpenChange }: SingleAutomat
                     </div>
                 </div>
                 <DialogFooter>
-                    <button onClick={handleSaveAutomation} className="btn btn-primary">Save</button>
+                    <button onClick={handleSaveAutomation} className="btn btn-primary" type="button">Save</button>
                 </DialogFooter>
 
 

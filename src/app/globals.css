@@ -41,7 +41,7 @@
     --radius: 0.5rem;
     --header-h: 4rem;
     --sidebar-w: 16rem;
-    --sidebarIcon-size: 1.1rem;
+    --sidebarIcon-size: 1.3rem;
     --footer-h: 2.5rem;
     --sidebar-w-collapsed: 4rem;
     --app-orange-500: #fc4239;
@@ -104,11 +104,12 @@
   }
 
   .btn-primary {
-    @apply ring-inset bg-app-orange-500 text-white hover:bg-app-orange-500/90;
+    @apply ring-inset !bg-app-orange-500 !text-white hover:!bg-app-orange-500/90;
   }
   .btn-secondary {
-    @apply ring-inset ring-1 ring-app-orange-500 text-app-orange-500 hover:bg-app-orange-500/10;
+    @apply ring-inset ring-1 ring-app-orange-500 !text-app-orange-500 !bg-white hover:bg-app-orange-500/10;
   }
+
 
   .btn-outlined {
     @apply ring-1 ring-current hover:bg-app-orange-500/10 hover:text-app-orange-500;
@@ -177,6 +178,10 @@
     @apply w-5 h-5;
   }
 
+  .navitem-trigger .title {
+    @apply text-sm font-normal;
+  }
+
 }
 
  
@@ -235,6 +240,13 @@
   margin-top: calc(var(--sidebar-padding) / 2);
 }
 
+.navitem {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding-left: calc(var(--sidebar-padding) / 2);
+}
+
 .navitem .navitem-trigger:hover{
   background-color: var(--app-green-300);
   cursor: pointer;
@@ -243,6 +255,7 @@
 .navitem .navitem-trigger.active{
   background-color: var(--app-green-300);
   color: var(--app-blue-500);
+  font-weight: 500;
 }
 
  .navitem .navitem-trigger {
@@ -253,9 +266,10 @@
   flex-direction: row;
   align-items: center;
   padding: .5rem calc(var(--sidebar-padding) / 2);
-  margin-inline: calc(var(--sidebar-padding) / 2);
+  /* margin-inline: calc(var(--sidebar-padding) / 2); */
   height: 3rem;
   transition: margin .1s ease-in-out;
+  position: relative;
 }
 
 .navitem .submenu .navitem-trigger {
@@ -270,6 +284,7 @@
   margin-right: 0;
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;
+
 }
 
  .navitem .navitem-trigger .main-icon {
@@ -284,7 +299,7 @@
 
 
 .navitem .submenu {
-  margin-left: calc( var(--sidebar-padding) + (var(--sidebarIcon-size) / 2));
+  margin-left: calc((var(--sidebarIcon-size) / 2) + (var(--sidebar-padding) / 2) );
   border-left: solid 1px #fff5;
 }
 
@@ -451,4 +466,9 @@
 button[disabled] {
   background: #aaa !important;
   pointer-events:none !important;
+}
+
+.navitem .navitem-trigger .icon svg {
+  height: 100%;
+  width: 100%;
 }

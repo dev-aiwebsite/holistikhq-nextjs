@@ -14,10 +14,13 @@ type AutomationsProps = {
 }
 const Automations = ({ className, boardId }: AutomationsProps) => {
     const [toggleValue, setToggleValue] = useState('active')
-    const [activeCount, setActiveCount] = useState(0)
-    const [inActiveCount, setInActiveCount] = useState(0)
-    const { appState } = useAppStateContext()
-    const boardAutomations = appState.currentUser.boards.find(board => board.id == boardId).Automations
+    const { appState, boards } = useAppStateContext()
+    if(!boards) return
+    const boardAutomations = boards.find(board => board.id == boardId)?.Automations
+    if(!boardAutomations) return
+    const acitveAutomations = boardAutomations.map(i => i.status != "inactive")
+    const [activeCount, setActiveCount] = useState(acitveAutomations.length)
+    const [inActiveCount, setInActiveCount] = useState(boardAutomations.length - activeCount)
     const [selectedAutomation,setSelectedAutomation] = useState("")
     const [isAddingAutomation,setIsAddingAutomation] = useState(false)
 
@@ -72,7 +75,7 @@ const Automations = ({ className, boardId }: AutomationsProps) => {
             </div>
 
 
-            {selectedAutomation && <SingleAutomation boardId={boardId} automationId={selectedAutomation} onOpenChange={onCloseSingleAutomation}  />}
+            {selectedAutomation && <SingleAutomation boardId={boardId} automationId={selectedAutomation} onOpenChange={onCloseSingleAutomation} isOpen={true}  />}
             {isAddingAutomation && <AddAutomation boardId={boardId} onOpenChange={onClosingAddAutomation}  />}
             
             

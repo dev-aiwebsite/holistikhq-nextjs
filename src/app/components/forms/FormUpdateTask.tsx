@@ -2,37 +2,31 @@ import { useForm, Controller } from "react-hook-form";
 import { DatePickerWithPresets } from "@app/components/ui/datepicker";
 import { SelectScrollable } from "../ui/select";
 import RichTextEditor from "../RichTextEditor";
-import { useEffect, useRef, useState } from "react";
+import { useRef} from "react";
 import { useAppStateContext } from "@app/context/AppStatusContext";
 import { _updateTask } from "@lib/server_actions/database_crud";
-import { CompleteTaskWithRelations } from "@lib/types";
+import { TaskAddType, TaskAddTypeComplete } from "@lib/types";
 import UserList from "../UserList";
 import TaskNameInput from "../ui/TaskNameInput";
-import { Button } from "../ui/button";
-import { CircleCheck, Plus } from "lucide-react";
 import { priorityOptions } from "@lib/const";
 import { SubtaskSection } from "./SubtaskSection";
 
 type TypeFormUpdateTask = {
     taskId?: string;
-    task:CompleteTaskWithRelations;
     boardId?: string;
-    onSubmit?:(task:CompleteTaskWithRelations)=>void;
+    onSubmit?:(task:TaskAddTypeComplete)=>void;
 };
 
-const FormUpdateTask = ({task, taskId, onSubmit }: TypeFormUpdateTask) => {
-    const { appState, tasks, setappState, updateTask } = useAppStateContext();
-    console.log(task, 'task FormUpdateTask')
-    if(!appState.tasks) return false
-    if(!task) return false
-    if(!taskId){
-        taskId = task.id
-    }
+const FormUpdateTask = ({taskId, onSubmit }: TypeFormUpdateTask) => {
+    const { tasks, updateTask,boards } = useAppStateContext();
+    console.log(taskId, 'task FormUpdateTask')
+    if(!tasks || !taskId) return
+    const task = tasks.find(t => t.id == taskId)
+    if(!task) return
     console.log(task, 'FormUpdateTask task')
-    const currentUser = appState.currentUser;
-    const boards = currentUser?.boards;
     const formRef = useRef<HTMLFormElement | null>(null)
     const subtasks = task.subtasks
+    
     
     const boardId = task.status.boardId
     const board = boards.find(b => b.id == boardId);
@@ -67,13 +61,23 @@ const FormUpdateTask = ({task, taskId, onSubmit }: TypeFormUpdateTask) => {
 
     const { isDirty } = form.formState;
 
-    function handleOnSubmit(newTaskData: CompleteTaskWithRelations) {
+    function handleOnSubmit(formData: Partial<TaskAddType>) {
+
+        const newTaskData:TaskAddTypeComplete = {
+            ...task!,
+            ...formData,
+            subtasks: [],
+        }
+
         if(completeStatus){
             if(completeStatus.id == newTaskData.statusId){
                 newTaskData.isCompleted = true
             }
         }
+
+
         updateTask(newTaskData)
+        
         if(onSubmit){
             const newTaskDataForState = {...task,...newTaskData}
             onSubmit(newTaskDataForState)
@@ -105,7 +109,7 @@ const FormUpdateTask = ({task, taskId, onSubmit }: TypeFormUpdateTask) => {
                                     linkChange={(link:string) => {
                                         form.setValue("taskLink", link); // Update task link
                                     }}
-                                    linkValue={form.getValues("taskLink")} // Get the current link value
+                                    linkValue={form.getValues("taskLink") || undefined} // Get the current link value
                                 />
                             )}
                         />
@@ -119,9 +123,12 @@ const FormUpdateTask = ({task, taskId, onSubmit }: TypeFormUpdateTask) => {
                                 name="assigneeId"
                                 control={form.control}
                                 render={({ field }) => (
-                                    <UserList onChange={(value) => {
+                                    <UserList
+                                    onChange={(value) => {
                                         field.onChange(value); // Update the assignee
-                                    }} value={field.value} />
+                                    }}
+                                    value={field.value || undefined}
+                                    />
                                 )}
                             />
                         </div>
@@ -191,8 +198,8 @@ const FormUpdateTask = ({task, taskId, onSubmit }: TypeFormUpdateTask) => {
                 
             </form>
             <div>
-                {boardId && 
-                    <SubtaskSection task={task} subtasks={subtasks} taskId={taskId} />
+                {boardId && subtasks &&
+                    <SubtaskSection taskId={taskId} />
                 }
             </div>
             <div className="w-full flex flex-row">

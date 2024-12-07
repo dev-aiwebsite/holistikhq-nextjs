@@ -21,7 +21,7 @@ const AddBoardForm = ({ onSuccess }: { onSuccess?: () => void }) => {
     userIds: []
   }
   const { control, register, handleSubmit, setError } = useForm<BoardAddType>({ defaultValues });
-  const { appState, addBoard } = useAppStateContext()
+  const { appState, clinics, addBoard } = useAppStateContext()
   const formRef = useRef<HTMLFormElement | null>(null)
 
   const handleOnSubmit = async (data: BoardAddType) => {
@@ -29,7 +29,6 @@ const AddBoardForm = ({ onSuccess }: { onSuccess?: () => void }) => {
     const currentUserId = currentUser.id
     const currentUserClinics = currentUser.clinics ? currentUser.clinics.map(clinic => clinic.id) : []
 
-    const clinics = appState.clinics
     let clinicUsers: string[] = []
     if (currentUserClinics.length && clinics) {
       let filteredClinics = clinics.filter(i => currentUserClinics.includes(i.id))
@@ -134,10 +133,10 @@ const AddBoardForm = ({ onSuccess }: { onSuccess?: () => void }) => {
           />
       </div> */}
 
-      <div>
+      {/* <div>
         <label htmlFor="icon">Icon</label>
         <input {...register("icon", { required: true })} id="icon" />
-      </div>
+      </div> */}
       <button type="submit" className="btn btn-primary">Add Board</button>
     </form>
   );

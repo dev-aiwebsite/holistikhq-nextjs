@@ -14,7 +14,7 @@ import { BoardStatus, Task } from "@prisma/client";
 import { useDrawerContext } from "@app/context/DrawerContext";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import FormUpdateTask from "../forms/FormUpdateTask";
-import { CompleteTaskWithRelations } from "@lib/types";
+import { CompleteTaskWithRelations, TypeTask } from "@lib/types";
 
 
 export type Column = BoardStatus
@@ -28,11 +28,12 @@ export interface ColumnDragData {
 
 interface BoardColumnProps {
   column: Column;
-  tasks: CompleteTaskWithRelations[];
+  tasks: TypeTask[];
   isOverlay?: boolean;
+  isDragDisable?:boolean;
 }
 
-export function BoardColumn({ column, tasks, isOverlay }: BoardColumnProps) {
+export function BoardColumn({isDragDisable, column, tasks, isOverlay }: BoardColumnProps) {
   const {isOpen, openDrawer, getOnCloseHandlers, addOnCloseHandler, closeDrawer} = useDrawerContext()
   const router = useRouter()
   const searchParams = useSearchParams();
@@ -55,7 +56,8 @@ export function BoardColumn({ column, tasks, isOverlay }: BoardColumnProps) {
     data: {
       type: "Column",
       column,
-    } satisfies ColumnDragData,
+    },
+    disabled: isDragDisable,
     attributes: {
       roleDescription: `Column: ${column.name}`,
     },
@@ -83,14 +85,14 @@ export function BoardColumn({ column, tasks, isOverlay }: BoardColumnProps) {
     router.push(`${pathname}`);
   }
 
-  function onUpdateSubmit(newTaskData:CompleteTaskWithRelations){
+  function onUpdateSubmit(newTaskData?:TypeTask){
     closeDrawer()
   }
 
-  const taskCardClickHandler = (taskId:string,task?:CompleteTaskWithRelations)=>{
+  const taskCardClickHandler = (taskId:string)=>{
     const headerItem = <button type="button" className="btn small btn-outlined text-grey-500">Mark as Complete</button>
   
-    openDrawer(<FormUpdateTask onSubmit={onUpdateSubmit}  key={taskId} task={task}  taskId={taskId}/>, headerItem)
+    openDrawer(<FormUpdateTask onSubmit={() => onUpdateSubmit()}  key={taskId}  taskId={taskId}/>, headerItem)
     router.push(`${pathname}?t=${taskId}`);
     addOnCloseHandler(removeParameterTask)
     
@@ -124,7 +126,7 @@ export function BoardColumn({ column, tasks, isOverlay }: BoardColumnProps) {
           <SortableContext  items={tasksIds}>
             {tasks.map((task) => (
               
-              <TaskCard key={task.id} task={task} onClick={() => taskCardClickHandler(task.id,task)} className="taskCard"/>
+              <TaskCard isDragDisable={isDragDisable} key={task.id} task={task} onClick={() => taskCardClickHandler(task.id)} className="taskCard"/>
               
             ))}
           </SortableContext>

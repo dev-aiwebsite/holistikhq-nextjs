@@ -40,10 +40,10 @@ import { DialogAddTask } from "../dialogs/DialogAddTask";
 import { DialogTaskTemplate } from "../dialogs/DialogTaskTemplate";
 import FormUpdateTask from "../forms/FormUpdateTask";
 import { useDrawerContext } from "@app/context/DrawerContext";
-import { CardContent, CardHeader, CardTitle } from "../ui/card";
+import { Card } from "./ui/card";
+import { CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
 import UserList from "../UserList";
 import { SelectScrollable } from "../ui/select";
-import { appAccess, mainBoards } from "@lib/const";
 
 export function KanbanBoard({ className, boardId }: { className?: string, boardId: string }) {
   const Router = useRouter()
@@ -64,39 +64,23 @@ export function KanbanBoard({ className, boardId }: { className?: string, boardI
   const completeStatus = boardData?.BoardStatus?.find(s => s.isComplete)
   console.log(boards, 'boards')
   const userClinics = appState.currentUser.clinics.map(c => c.id)
-  const hasBoardControl = useMemo(() => {
-    
-    let hasControl = true
-
-    if(mainBoards.filter(b => b.id == boardId).length){
-      if (!appAccess.mainboards.specialactions.some(role => appState.currentUser.roles.includes(role))) {
-        hasControl = false
-      }
-    }
-   
-    return hasControl
-
-  }, [appState.currentUser])
   
-  const queryFilters:Record<string,Record<string,any>[]> = {AND: [
-    { statusId: { in: columnsId } }, // Must match a statusId in the list
-  ]}
-
-  if(!hasBoardControl){
-    queryFilters.AND.push({
-      OR: [
-        { createdBy: appState.currentUser.id },  // OR conditions
-        { assigneeId: appState.currentUser.id },
-        { clinicId: { in: userClinics } },
-        { collaborator: { some: { userId: appState.currentUser.id } } },
-      ],
-    })
-  }
-
   useEffect(() => {
-    _getTasks(
-      queryFilters
-    )
+    let columnsId = columns.map(c => c.id)
+    _getTasks({
+      AND: [
+        { statusId: { in: columnsId } }, // Must match a statusId in the list
+        {
+          OR: [
+            { createdBy: appState.currentUser.id },  // OR conditions
+            { assigneeId: appState.currentUser.id },
+            { clinicId: { in: userClinics } },
+            { collaborator: { some: { userId: appState.currentUser.id } } },
+          ],
+        },
+      ],
+    }
+  )
       .then(res => {
         console.log(res, '_getTask')
         if (res.success && res.tasks) {
@@ -116,26 +100,12 @@ export function KanbanBoard({ className, boardId }: { className?: string, boardI
 
   }, [showTaskId, tasks])
 
+  console.log(showTaskId, 'showTaskId')
   const pickedUpTaskColumn = useRef<string | null>(null);
 
   const [activeColumn, setActiveColumn] = useState<Column | null>(null);
   const [currentTask, setCurrentTask] = useState<CompleteTaskWithRelations | null>(null);
   const [activeTask, setActiveTask] = useState<CompleteTaskWithRelations | null>(null);
-
- 
-
-  const isDragDisable = useMemo(() => {
-    let isDisabled = false
-
-    if(mainBoards.filter(b => b.id == boardId).length){
-      if (appAccess.mainboards.dnd.some(role => appState.currentUser.roles.includes(role))) {
-        isDisabled = true
-      }
-    }
-   
-    return isDisabled
-
-  }, [appState.currentUser])
 
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
@@ -147,8 +117,6 @@ export function KanbanBoard({ className, boardId }: { className?: string, boardI
   );
 
   if (!tasks) return <></>
-
-
 
   function getDraggingTaskData(taskId: UniqueIdentifier, columnId: string) {
     const tasksInColumn = tasks?.filter((task) => task.statusId === columnId);
@@ -325,7 +293,7 @@ export function KanbanBoard({ className, boardId }: { className?: string, boardI
                 <div className="flex flex-row items-center gap-2 tr">
                   <span className="td w-20">Assignee</span>
                   <div className="td !w-48">
-                    <UserList onChange={(v) => updateFilters('assigneeId', v)} className="!w-full" />
+                    <UserList onChange={(v)=>updateFilters('assigneeId',v)} className="!w-full"/>
 
                   </div>
                 </div>
@@ -345,7 +313,7 @@ export function KanbanBoard({ className, boardId }: { className?: string, boardI
             </PopoverContent>
           </Popover>
 
-          {hasBoardControl && <ToggleGroup type="single" className="" defaultValue="boardview">
+          <ToggleGroup type="single" className="" defaultValue="boardview">
             <ToggleGroupItem value="listview" className="btn-w-icon">
               <Rows3 size={16} strokeWidth={1} />
               <span>List</span>
@@ -358,7 +326,7 @@ export function KanbanBoard({ className, boardId }: { className?: string, boardI
               <WorkflowIcon />
               <span>Workflow</span>
             </ToggleGroupItem>
-          </ToggleGroup>}
+          </ToggleGroup>
 
           <Toggle
             variant={"outline"}
@@ -374,10 +342,8 @@ export function KanbanBoard({ className, boardId }: { className?: string, boardI
             <span>Assigned to Me</span>
           </Toggle>
 
-          {hasBoardControl && <>
-            <DialogAutomations boardId={boardId} />
-            <DialogTaskTemplate boardId={boardId} />
-          </>}
+          <DialogAutomations boardId={boardId} />
+          <DialogTaskTemplate boardId={boardId} />
         </div>
       </div>
       <div className="bg-app-brown-200 flex-1">
@@ -392,43 +358,42 @@ export function KanbanBoard({ className, boardId }: { className?: string, boardI
         >
           <BoardContainer className={className}>
             <SortableContext items={columnsId}>
-              {columns.map((col) => {
-                // Filter tasks for the current column considering the assignee filter
-                const filteredTasks = tasks.filter((task) => {
-                  // Determine if the task should be filtered based on assignee-related filters
-                  const filterAssignee = filters.assigneeId
-                    ? task.assigneeId !== filters.assigneeId
-                    : false;
+            {columns.map((col) => {
+              // Filter tasks for the current column considering the assignee filter
+              const filteredTasks = tasks.filter((task) => {
+                // Determine if the task should be filtered based on assignee-related filters
+                const filterAssignee = filters.assigneeId 
+                  ? task.assigneeId !== filters.assigneeId 
+                  : false;
 
-                  const assignedToMe = !filters.assigneeId && filters.assignedToMe
-                    ? task.assigneeId !== filters.assignedToMe
-                    : false;
+                const assignedToMe = !filters.assigneeId && filters.assignedToMe 
+                  ? task.assigneeId !== filters.assignedToMe 
+                  : false;
 
-                  // Check if every word in the search key matches the task string
-                  const stringTask = JSON.stringify(task).toLowerCase();
-                  const searchKey = filters.search.toLowerCase();
-                  const searchWords = searchKey.split(" ");
-                  const isMatch = searchWords.every((word) => stringTask.includes(word));
+                // Check if every word in the search key matches the task string
+                const stringTask = JSON.stringify(task).toLowerCase();
+                const searchKey = filters.search.toLowerCase();
+                const searchWords = searchKey.split(" "); 
+                const isMatch = searchWords.every((word) => stringTask.includes(word));
 
-                  // Determine if the task should be filtered based on status
-                  const filterStatus = filters.statusId !== 'na'
-                    ? filters.statusId !== task.statusId
-                    : false;
+                // Determine if the task should be filtered based on status
+                const filterStatus = filters.statusId !== 'na' 
+                  ? filters.statusId !== task.statusId 
+                  : false;
 
-                  // Main conditions to include/exclude the task
-                  if (task.parentId) return false; // Exclude subtasks
-                  if (task.statusId !== col.id) return false; // Exclude tasks not in the current column
-                  if (filterStatus) return false; // Exclude tasks that don't match the status filter
-                  if (filterAssignee) return false; // Exclude tasks that don't match the assignee filter
-                  if (assignedToMe) return false; // Exclude tasks not assigned to me when "assignedToMe" is set
-                  if (!isMatch) return false; // Exclude tasks that don't match the search criteria
+                // Main conditions to include/exclude the task
+                if (task.parentId) return false; // Exclude subtasks
+                if (task.statusId !== col.id) return false; // Exclude tasks not in the current column
+                if (filterStatus) return false; // Exclude tasks that don't match the status filter
+                if (filterAssignee) return false; // Exclude tasks that don't match the assignee filter
+                if (assignedToMe) return false; // Exclude tasks not assigned to me when "assignedToMe" is set
+                if (!isMatch) return false; // Exclude tasks that don't match the search criteria
 
-                  return true; // Include task if all conditions pass
-                });
+                return true; // Include task if all conditions pass
+              });
 
                 return (
                   <BoardColumn
-                    isDragDisable={isDragDisable}
                     key={col.id}
                     column={col}
                     tasks={filteredTasks}
@@ -463,8 +428,10 @@ export function KanbanBoard({ className, boardId }: { className?: string, boardI
   );
 
   function onDragStart(event: DragStartEvent) {
+
     if (!hasDraggableData(event.active)) return;
     const data = event.active.data.current;
+    console.log(data, 'data ondragstart', '\n')
     if (data?.type === "Column") {
       setActiveColumn(data.column);
       return;

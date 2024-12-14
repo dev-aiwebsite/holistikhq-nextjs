@@ -143,6 +143,7 @@ export type BoardAddType = {
   icon: string | null;
   createdBy: string;
   userIds: string[];
+  myTodoUserId?: string;
 }
 
 export type BoardStatusAddType = {

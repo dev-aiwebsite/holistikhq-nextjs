@@ -8,6 +8,7 @@ import { cn } from "@lib/utils";
 
 type DialogAddTaskPropsType = {
   isOpen?: boolean,
+  tasktype?:"mytodo" | "task";
   triggerContent?: {
     text?: string;
     icon?: ReactNode;
@@ -17,7 +18,7 @@ type DialogAddTaskPropsType = {
   formDefaultData?:TypeAddTaskdefaultData;
 
 }
-export function DialogAddTask({boardId,triggerContent, isOpen, formDefaultData }: DialogAddTaskPropsType) {
+export function DialogAddTask({tasktype, boardId,triggerContent, isOpen, formDefaultData }: DialogAddTaskPropsType) {
   const [dialogOpen, setDialogOpen] = useState(isOpen)
   
 
@@ -43,7 +44,7 @@ export function DialogAddTask({boardId,triggerContent, isOpen, formDefaultData }
       title="New Task"
       trigger={triggerEl}
     >
-      <FormAddTask defaultData={formDefaultData} boardId={boardId} onCancel={()=>setDialogOpen(false)} />
+      <FormAddTask tasktype={tasktype} defaultData={formDefaultData} boardId={boardId} onCancel={()=>setDialogOpen(false)} />
     </Dialog>
   )
 }

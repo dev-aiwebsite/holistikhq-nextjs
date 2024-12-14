@@ -5,7 +5,7 @@ const Page = ({ params }: { params: { board_id: string } }) => {
     const boardId = params.board_id
 
     return (<>
-            <KanbanBoard boardId={boardId} className="bg-app-brown-200 board-wrapper py-4" />
+            <KanbanBoard  boardId={boardId} className="bg-app-brown-200 board-wrapper py-4" />
     </>
 
     );

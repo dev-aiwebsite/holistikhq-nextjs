@@ -147,7 +147,8 @@ export const _addTask = async (task: TaskAddTypeComplete) => {
                 statusId: task.statusId,
                 assigneeId: task.assigneeId || undefined,
                 taskLink: task.taskLink,
-                createdBy: task.createdBy,
+                type: task.type,
+                createdBy: task.createdBy || "",
                 ...(task.subtasks?.length
                     ? {
                           subtasks: {
@@ -209,7 +210,9 @@ export const _updateTask = async (taskId: string, updatedTask: Partial<Task>) =>
                 assigneeId: updatedTask.assigneeId || null,
                 parentId: updatedTask.parentId,
                 taskLink: updatedTask.taskLink,
-                isCompleted: updatedTask.isCompleted
+                isCompleted: updatedTask.isCompleted,
+                todoStatusId: updatedTask.todoStatusId || null,
+                updatedById: updatedTask.updatedById,
             },
             include: {
                 status: true,
@@ -268,6 +271,7 @@ export const _addBoard = async (data: BoardAddType) => {
                 color: data.color,
                 icon: data.icon,
                 userIds: data.userIds,
+                myTodoUserId: data.myTodoUserId || undefined,
                 users: {
                     connect: data.userIds.map(id => ({ id })),
                 },
@@ -302,6 +306,7 @@ export const _getBoards = async (boardId?: string | string[]) => {
     })
     type resType = {
         boards: TypeBoardComplete[] | null;
+        myTodoBoard?: resBoardType;
         success: boolean;
         message: string;
     };
@@ -341,7 +346,10 @@ export const _getBoards = async (boardId?: string | string[]) => {
                 }
             }
             const boards = await prisma.board.findMany({
-                where: where,
+                where: {
+                    ...where,
+                    myTodoUserId:null
+                },
                 orderBy: {
                     createdAt: 'desc',
                 },

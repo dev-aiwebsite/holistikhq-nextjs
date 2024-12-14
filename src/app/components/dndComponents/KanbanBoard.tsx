@@ -44,14 +44,46 @@ import { CardContent, CardHeader, CardTitle } from "../ui/card";
 import UserList from "../UserList";
 import { SelectScrollable } from "../ui/select";
 import { appAccess, mainBoards } from "@lib/const";
+import { createId } from "@paralleldrive/cuid2";
+import { BoardStatus } from "prisma/prisma-client";
+import MarkAsCompleteBtn from "../task/MarkAsCompleteBtn";
 
-export function KanbanBoard({ className, boardId }: { className?: string, boardId: string }) {
+type KanbanBoardProps =
+  | { boardType: "mytodo"; boardId?: string; className?: string }
+  | { boardType?: "board"; boardId: string; className?: string };
+
+
+export function KanbanBoard({ className, boardId, boardType = "board" }:KanbanBoardProps ) {
   const Router = useRouter()
 
-  const { appState, setappState, tasks, setTasks, updateTask, boards, setKanbanData } = useAppStateContext()
+  const { appState, setappState, tasks, setTasks, updateTask, boards, myTodoBoard, setKanbanData } = useAppStateContext()
   const { isOpen, openDrawer, getOnCloseHandlers, addOnCloseHandler, closeDrawer } = useDrawerContext()
-  const boardData = useMemo(() => boards.find((board) => board.id === boardId), [boards, boardId]);
-  const [columns, setColumns] = useState<Column[]>(boardData?.BoardStatus || []);
+  const boardData = useMemo(() => {
+    if(boardType == "mytodo"){
+      return myTodoBoard[0]
+    }
+    return boards.find((board) => board.id === boardId)
+
+  }, [boards, boardId, myTodoBoard]);
+
+  boardId = boardData.id
+  
+const tempColId = useMemo(()=> (createId()),[boardId])
+
+  const statusArrangeMent = boardData?.statusArrangement
+  const orderedBoardStatuses = statusArrangeMent && boardData?.BoardStatus?.toSorted((a,b)=>{ 
+    
+    return statusArrangeMent?.indexOf(a.id) - statusArrangeMent?.indexOf(b.id)
+  })
+
+
+  const defaultCol:BoardStatus = {...(boardData?.BoardStatus?.[0] ?? {}),
+  id: tempColId,
+  name: "My To Do's"}
+  
+  const boardStatuses = boardType == "mytodo" ? [defaultCol, ...(orderedBoardStatuses ?? [])] : orderedBoardStatuses || [] ;
+  
+  const [columns, setColumns] = useState<Column[]>(boardStatuses);
   const [filters, setFilters] = useState({
     search: "",
     assigneeId: "",
@@ -62,7 +94,6 @@ export function KanbanBoard({ className, boardId }: { className?: string, boardI
   const showTaskId = searchParams.get('t')
   const columnsId = columns.map(c => c.id)
   const completeStatus = boardData?.BoardStatus?.find(s => s.isComplete)
-  console.log(boards, 'boards')
   const userClinics = appState.currentUser.clinics.map(c => c.id)
   const hasBoardControl = useMemo(() => {
     
@@ -79,8 +110,8 @@ export function KanbanBoard({ className, boardId }: { className?: string, boardI
   }, [appState.currentUser])
   
   const queryFilters:Record<string,Record<string,any>[]> = {AND: [
-    { statusId: { in: columnsId } }, // Must match a statusId in the list
   ]}
+
 
   if(!hasBoardControl){
     queryFilters.AND.push({
@@ -89,9 +120,22 @@ export function KanbanBoard({ className, boardId }: { className?: string, boardI
         { assigneeId: appState.currentUser.id },
         { clinicId: { in: userClinics } },
         { collaborator: { some: { userId: appState.currentUser.id } } },
-      ],
+      ]
     })
   }
+
+  if(boardType !== "mytodo"){
+    queryFilters.AND.push({ statusId: { in: columnsId } }) // Must match a statusId in the list
+
+  } else {
+
+      queryFilters.AND.push({OR: [
+        { statusId: { in: columnsId } },
+        { assigneeId: appState.currentUser.id },
+      ]
+    }
+  )}
+  
 
   useEffect(() => {
     _getTasks(
@@ -105,13 +149,12 @@ export function KanbanBoard({ className, boardId }: { className?: string, boardI
       })
   }, [boardId, appState.currentUser])
 
-
   useEffect(() => {
     if (!showTaskId) return
     if (!tasks) return
     let task = tasks.find(t => t.id == showTaskId)
-
-    const headerItem = <button type="button" className="btn small btn-outlined text-grey-500">Mark as Complete</button>
+    if(!task) return
+    const headerItem = <MarkAsCompleteBtn task={task} />
     openDrawer(<FormUpdateTask onSubmit={() => closeDrawer()} key={showTaskId} task={task} taskId={showTaskId} />, headerItem)
 
   }, [showTaskId, tasks])
@@ -393,6 +436,25 @@ export function KanbanBoard({ className, boardId }: { className?: string, boardI
             <SortableContext items={columnsId}>
               {columns.map((col) => {
                 // Filter tasks for the current column considering the assignee filter
+                if(boardType == "mytodo" && col.id == tempColId){
+                  return (
+                    <BoardColumn
+                      isDragDisable={isDragDisable}
+                      key={col.id}
+                      column={col}
+                      tasks={tasks.filter(t => {
+                        let isValid = false
+
+                          if(t.type == "task"){
+                            isValid = !t.todoStatusId
+                          }
+
+                        return isValid
+                      } )}
+                    />
+                  );
+                }
+
                 const filteredTasks = tasks.filter((task) => {
                   // Determine if the task should be filtered based on assignee-related filters
                   const filterAssignee = filters.assigneeId
@@ -416,7 +478,13 @@ export function KanbanBoard({ className, boardId }: { className?: string, boardI
 
                   // Main conditions to include/exclude the task
                   if (task.parentId) return false; // Exclude subtasks
-                  if (task.statusId !== col.id) return false; // Exclude tasks not in the current column
+                  
+                  if(boardType == "mytodo" && task.type == "task"){
+                    if (task.todoStatusId !== col.id) return false; // Exclude tasks not in the current column
+                  } else {
+                    if (task.statusId !== col.id) return false; // Exclude tasks not in the current column
+                  }
+
                   if (filterStatus) return false; // Exclude tasks that don't match the status filter
                   if (filterAssignee) return false; // Exclude tasks that don't match the assignee filter
                   if (assignedToMe) return false; // Exclude tasks not assigned to me when "assignedToMe" is set
@@ -511,10 +579,17 @@ export function KanbanBoard({ className, boardId }: { className?: string, boardI
           activeTask.isCompleted = false
         }
       }
+      
+      const newStatusId = activeTask.statusId == tempColId ? "" : activeTask.statusId
+      console.log(newStatusId, 'newStatusId')
+      console.log(tempColId, 'tempColId')
 
-      console.log(activeTask)
-      updateTask(activeTask)
-
+      const updatedTaskData:CompleteTaskWithRelations = boardType == "board" ? activeTask : activeTask.type == "mytodo" ? {...activeTask,statusId:newStatusId} : {...currentTask,
+        todoStatusId: newStatusId
+      }
+      
+      console.log(updatedTaskData, 'updatedTaskData')
+      updateTask(updatedTaskData)
     }
 
 

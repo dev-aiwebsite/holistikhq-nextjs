@@ -15,6 +15,7 @@ import { useDrawerContext } from "@app/context/DrawerContext";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import FormUpdateTask from "../forms/FormUpdateTask";
 import { CompleteTaskWithRelations, TypeTask } from "@lib/types";
+import MarkAsCompleteBtn from "../task/MarkAsCompleteBtn";
 
 
 export type Column = BoardStatus
@@ -90,9 +91,9 @@ export function BoardColumn({isDragDisable, column, tasks, isOverlay }: BoardCol
   }
 
   const taskCardClickHandler = (taskId:string)=>{
-    const headerItem = <button type="button" className="btn small btn-outlined text-grey-500">Mark as Complete</button>
+    // const headerItem = <MarkAsCompleteBtn taskId={taskId} />
   
-    openDrawer(<FormUpdateTask onSubmit={() => onUpdateSubmit()}  key={taskId}  taskId={taskId}/>, headerItem)
+    // openDrawer(<FormUpdateTask onSubmit={() => onUpdateSubmit()}  key={taskId}  taskId={taskId}/>, headerItem)
     router.push(`${pathname}?t=${taskId}`);
     addOnCloseHandler(removeParameterTask)
     

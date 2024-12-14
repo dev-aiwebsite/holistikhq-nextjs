@@ -31,6 +31,7 @@ type KanbanDataPropsType = {
     setappState:Dispatch<SetStateAction<AppStateDataType>>;
     tasks:TypeTask[] | null;
     boards: TypeBoardComplete[];
+    myTodoBoard: TypeBoardComplete[];
     boardStatuses:BoardStatus[] | null;
     clinics:TypeClinicComplete[];
     addUser:(data:UserAddType) => void;
@@ -59,8 +60,11 @@ export default function AppStateContextProvider({children, data}:AppStateContext
         currentUser: data.currentUser,
     }
     
+    const filteredBoards = data.currentUser.boards.filter(b => !b.myTodoUserId)
+    const myToDoBoard = data.currentUser.boards.filter(b => b.myTodoUserId)
     const [appState,setappState] = useState(AppState);
-    const [boards, setBoards] = useState<TypeBoardComplete[]>(data.currentUser.boards);
+    const [boards, setBoards] = useState<TypeBoardComplete[]>(filteredBoards);
+    const [myTodoBoard, setMyTodoBoard] = useState<TypeBoardComplete[]>(myToDoBoard)
     const [tasks, setTasks] = useState<TypeTask[] | null>(null)
     const [boardStatuses,setBoardStatuses] = useState<BoardStatus[] | null>(null)
     const [clinics, setClinics] = useState<TypeClinicComplete[] | undefined>(data.clinics)
@@ -82,7 +86,8 @@ export default function AppStateContextProvider({children, data}:AppStateContext
         const taskId = newTaskData.id;
         const currentUserId = appState.currentUser.id
         const boardId = newTaskData.status.boardId
-        const boardData = boards.find(b => b.id == boardId)
+        const boardData = appState.currentUser.boards.find(b => b.id == boardId)
+        newTaskData.updatedById = currentUserId
         if (!taskId) return;
         if(!boardData) {
             console.log('updateTask, cant find board')
@@ -210,17 +215,18 @@ export default function AppStateContextProvider({children, data}:AppStateContext
             if(res.success && newClinic){
                 setClinics((prevdata) => {
                     if (!prevdata) return [newClinic];
+
                     return [...prevdata, newClinic]
                   });
 
-                  alert("Clinic added successfully!");
+                  alert("User added successfully!");
             } else {
-                alert("Adding Clinic failed, something went wrong")
+                alert("Adding user failed, something went wrong")
                 console.log(res)
             }
 
         } catch (error) {
-            alert("Adding Clinic failed, something went wrong")
+            alert("Adding user failed, something went wrong")
             console.error(error)
         }
     }
@@ -312,7 +318,7 @@ export default function AppStateContextProvider({children, data}:AppStateContext
     }
       
     return (
-        <AppStateContext.Provider value={{addClinic, addUser, setKanbanData, boards,tasks, boardStatuses, appState, setappState, updateTask, addTask, setTasks, addBoard, updateBoard, clinics }}>
+        <AppStateContext.Provider value={{myTodoBoard, addUser, setKanbanData, boards,tasks, boardStatuses, appState, setappState, updateTask, addTask, setTasks, addBoard, updateBoard, clinics }}>
             {children}
         </AppStateContext.Provider>
     );

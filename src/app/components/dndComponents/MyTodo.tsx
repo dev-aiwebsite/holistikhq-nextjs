@@ -40,18 +40,43 @@ import { DialogAddTask } from "../dialogs/DialogAddTask";
 import { DialogTaskTemplate } from "../dialogs/DialogTaskTemplate";
 import FormUpdateTask from "../forms/FormUpdateTask";
 import { useDrawerContext } from "@app/context/DrawerContext";
-import { Card } from "./ui/card";
-import { CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
+import { CardContent, CardHeader, CardTitle } from "../ui/card";
 import UserList from "../UserList";
 import { SelectScrollable } from "../ui/select";
+import { appAccess, mainBoards } from "@lib/const";
+import { createId } from "@paralleldrive/cuid2";
+import { BoardStatus } from "prisma/prisma-client";
+import MarkAsCompleteBtn from "../task/MarkAsCompleteBtn";
 
-export function KanbanBoard({ className, boardId }: { className?: string, boardId: string }) {
+type MyTodoBoardProps = {className?: string }
+
+
+export function MyTodoBoard({ className }:MyTodoBoardProps ) {
+  const boardType = "mytodo"
   const Router = useRouter()
 
-  const { appState, setappState, tasks, setTasks, updateTask, boards, setKanbanData } = useAppStateContext()
+  const { appState, setappState, tasks, setTasks, updateTask, boards, myTodoBoard, setKanbanData } = useAppStateContext()
   const { isOpen, openDrawer, getOnCloseHandlers, addOnCloseHandler, closeDrawer } = useDrawerContext()
-  const boardData = useMemo(() => boards.find((board) => board.id === boardId), [boards, boardId]);
-  const [columns, setColumns] = useState<Column[]>(boardData?.BoardStatus || []);
+
+  const boardData = useMemo(() => {
+      return myTodoBoard[0]
+  }, [boards, myTodoBoard]);
+
+  const boardId = useMemo(()=>{
+    return boardData.id
+  },[boards, myTodoBoard])
+  
+  const tempColId = useMemo(()=> (createId()),[boardId])
+
+  const statusArrangeMent = boardData?.statusArrangement
+  const orderedBoardStatuses = statusArrangeMent && boardData?.BoardStatus?.toSorted((a,b)=>{ 
+    
+    return statusArrangeMent?.indexOf(a.id) - statusArrangeMent?.indexOf(b.id)
+  })
+  
+  const boardStatuses = orderedBoardStatuses || []
+  
+  const [columns, setColumns] = useState<Column[]>(boardStatuses);
   const [filters, setFilters] = useState({
     search: "",
     assigneeId: "",
@@ -62,25 +87,17 @@ export function KanbanBoard({ className, boardId }: { className?: string, boardI
   const showTaskId = searchParams.get('t')
   const columnsId = columns.map(c => c.id)
   const completeStatus = boardData?.BoardStatus?.find(s => s.isComplete)
-  console.log(boards, 'boards')
   const userClinics = appState.currentUser.clinics.map(c => c.id)
-  
+ 
+  const queryFilters:Record<string,Record<string,any>[]> = {OR: [
+    { statusId: { in: columnsId } },
+    { assigneeId: appState.currentUser.id },
+  ]}  
+
   useEffect(() => {
-    let columnsId = columns.map(c => c.id)
-    _getTasks({
-      AND: [
-        { statusId: { in: columnsId } }, // Must match a statusId in the list
-        {
-          OR: [
-            { createdBy: appState.currentUser.id },  // OR conditions
-            { assigneeId: appState.currentUser.id },
-            { clinicId: { in: userClinics } },
-            { collaborator: { some: { userId: appState.currentUser.id } } },
-          ],
-        },
-      ],
-    }
-  )
+    _getTasks(
+      queryFilters
+    )
       .then(res => {
         console.log(res, '_getTask')
         if (res.success && res.tasks) {
@@ -89,23 +106,36 @@ export function KanbanBoard({ className, boardId }: { className?: string, boardI
       })
   }, [boardId, appState.currentUser])
 
-
   useEffect(() => {
     if (!showTaskId) return
     if (!tasks) return
     let task = tasks.find(t => t.id == showTaskId)
+    if(!task) return
 
-    const headerItem = <button type="button" className="btn small btn-outlined text-grey-500">Mark as Complete</button>
+    const headerItem = <MarkAsCompleteBtn task={task} />
     openDrawer(<FormUpdateTask onSubmit={() => closeDrawer()} key={showTaskId} task={task} taskId={showTaskId} />, headerItem)
 
   }, [showTaskId, tasks])
 
-  console.log(showTaskId, 'showTaskId')
   const pickedUpTaskColumn = useRef<string | null>(null);
 
   const [activeColumn, setActiveColumn] = useState<Column | null>(null);
   const [currentTask, setCurrentTask] = useState<CompleteTaskWithRelations | null>(null);
   const [activeTask, setActiveTask] = useState<CompleteTaskWithRelations | null>(null);
+
+ 
+
+  const isDragDisable = useMemo(() => {
+    let isDisabled = false
+
+    if(mainBoards.some(b => b.id == boardId)){
+      isDisabled = !appAccess.mainboards.dnd.some(role => appState.currentUser.roles.includes(role))
+     
+    }
+   
+    return isDisabled
+
+  }, [appState.currentUser])
 
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
@@ -118,6 +148,8 @@ export function KanbanBoard({ className, boardId }: { className?: string, boardI
 
   if (!tasks) return <></>
 
+
+
   function getDraggingTaskData(taskId: UniqueIdentifier, columnId: string) {
     const tasksInColumn = tasks?.filter((task) => task.statusId === columnId);
     const taskPosition = tasksInColumn?.findIndex((task) => task.id === taskId);
@@ -129,100 +161,6 @@ export function KanbanBoard({ className, boardId }: { className?: string, boardI
       column,
     };
   }
-
-  const announcements: Announcements = {
-    onDragStart({ active }) {
-      if (!hasDraggableData(active)) return;
-      if (active.data.current?.type === "Column") {
-        const startColumnIdx = columnsId.findIndex((id) => id === active.id);
-        const startColumn = columns[startColumnIdx];
-        return `Picked up Column ${startColumn?.name} at position: ${startColumnIdx + 1
-          } of ${columnsId.length}`;
-      } else if (active.data.current?.type === "Task") {
-        pickedUpTaskColumn.current = active.data.current.task.statusId;
-        const { tasksInColumn, taskPosition, column } = getDraggingTaskData(
-          active.id,
-          pickedUpTaskColumn.current
-        );
-
-        const message = `Picked up Task ${active.data.current.task.description
-          } at position: ${taskPosition && taskPosition + 1} of ${tasksInColumn?.length
-          } in column ${column?.name}`;
-
-        return message
-      }
-    },
-    onDragOver({ active, over }) {
-      if (!hasDraggableData(active) || !hasDraggableData(over)) return;
-
-      if (
-        active.data.current?.type === "Column" &&
-        over.data.current?.type === "Column"
-      ) {
-        const overColumnIdx = columnsId.findIndex((id) => id === over.id);
-        return `Column ${active.data.current.column.name} was moved over ${over.data.current.column.name
-          } at position ${overColumnIdx + 1} of ${columnsId.length}`;
-      } else if (
-        active.data.current?.type === "Task" &&
-        over.data.current?.type === "Task"
-      ) {
-        const { tasksInColumn, taskPosition, column } = getDraggingTaskData(
-          over.id,
-          over.data.current.task.statusId
-        );
-        const newTaskPosition = taskPosition && taskPosition + 1
-        const newTaskInColumnLength = tasksInColumn?.length
-
-        if (over.data.current.task.statusId !== pickedUpTaskColumn.current) {
-
-
-
-          return `Task ${active.data.current.task.description
-            } was moved over column ${column?.name} in position ${newTaskPosition} of ${newTaskInColumnLength}`;
-        }
-        return `Task was moved over position ${newTaskPosition} of ${newTaskInColumnLength} in column ${column?.name}`;
-      }
-    },
-    onDragEnd({ active, over }) {
-      if (!hasDraggableData(active) || !hasDraggableData(over)) {
-        pickedUpTaskColumn.current = null;
-        return;
-      }
-      if (
-        active.data.current?.type === "Column" &&
-        over.data.current?.type === "Column"
-      ) {
-        const overColumnPosition = columnsId.findIndex((id) => id === over.id);
-
-        return `Column ${active.data.current.column.name
-          } was dropped into position ${overColumnPosition + 1} of ${columnsId.length
-          }`;
-      } else if (
-        active.data.current?.type === "Task" &&
-        over.data.current?.type === "Task"
-      ) {
-        const { tasksInColumn, taskPosition, column } = getDraggingTaskData(
-          over.id,
-          over.data.current.task.statusId
-        );
-        if (over.data.current.task.statusId !== pickedUpTaskColumn.current) {
-          return `Task was dropped into column ${column?.name} in position ${taskPosition + 1
-            } of ${tasksInColumn.length}`;
-        }
-        return `Task was dropped into position ${taskPosition + 1} of ${tasksInColumn.length
-          } in column ${column?.name}`;
-      }
-      pickedUpTaskColumn.current = null;
-    },
-    onDragCancel({ active }) {
-      pickedUpTaskColumn.current = null;
-      if (!hasDraggableData(active)) return;
-
-      const message = `Dragging ${active.data.current?.type} cancelled.`;
-      console.log(message)
-      return message
-    },
-  };
 
   if (!boardData) {
     Router.push('/dashboard')
@@ -265,7 +203,7 @@ export function KanbanBoard({ className, boardId }: { className?: string, boardI
         <div className="py-4">
           <div className="flex flex-row items-center gap-2">
             <span className="capitalize text-2xl font-bold">{boardData.name}</span>
-            <DialogAddTask boardId={boardId} triggerContent={
+            <DialogAddTask tasktype="mytodo" boardId={boardId} triggerContent={
               {
                 button: <Button variant="ghost" className="p-2 hover:text-app-orange-500">
                   <Plus size={20} strokeWidth={3} />
@@ -293,7 +231,7 @@ export function KanbanBoard({ className, boardId }: { className?: string, boardI
                 <div className="flex flex-row items-center gap-2 tr">
                   <span className="td w-20">Assignee</span>
                   <div className="td !w-48">
-                    <UserList onChange={(v)=>updateFilters('assigneeId',v)} className="!w-full"/>
+                    <UserList onChange={(v) => updateFilters('assigneeId', v)} className="!w-full" />
 
                   </div>
                 </div>
@@ -313,7 +251,7 @@ export function KanbanBoard({ className, boardId }: { className?: string, boardI
             </PopoverContent>
           </Popover>
 
-          <ToggleGroup type="single" className="" defaultValue="boardview">
+          {/* <ToggleGroup type="single" className="" defaultValue="boardview">
             <ToggleGroupItem value="listview" className="btn-w-icon">
               <Rows3 size={16} strokeWidth={1} />
               <span>List</span>
@@ -326,9 +264,9 @@ export function KanbanBoard({ className, boardId }: { className?: string, boardI
               <WorkflowIcon />
               <span>Workflow</span>
             </ToggleGroupItem>
-          </ToggleGroup>
+          </ToggleGroup> */}
 
-          <Toggle
+          {/* <Toggle
             variant={"outline"}
             onPressedChange={(isPressed) => {
               // Update the filters.assignee state based on the toggle state
@@ -340,17 +278,15 @@ export function KanbanBoard({ className, boardId }: { className?: string, boardI
             }}
           >
             <span>Assigned to Me</span>
-          </Toggle>
+          </Toggle> */}
 
           <DialogAutomations boardId={boardId} />
           <DialogTaskTemplate boardId={boardId} />
+          
         </div>
       </div>
       <div className="bg-app-brown-200 flex-1">
         <DndContext
-          accessibility={{
-            announcements,
-          }}
           sensors={sensors}
           onDragStart={onDragStart}
           onDragEnd={onDragEnd}
@@ -358,42 +294,58 @@ export function KanbanBoard({ className, boardId }: { className?: string, boardI
         >
           <BoardContainer className={className}>
             <SortableContext items={columnsId}>
-            {columns.map((col) => {
-              // Filter tasks for the current column considering the assignee filter
-              const filteredTasks = tasks.filter((task) => {
-                // Determine if the task should be filtered based on assignee-related filters
-                const filterAssignee = filters.assigneeId 
-                  ? task.assigneeId !== filters.assigneeId 
-                  : false;
+              {columns.map((col,index) => {
+                // Filter tasks for the current column considering the assignee filter
+  
+                const filteredTasks = tasks.filter((task) => {
+                  // Determine if the task should be filtered based on assignee-related filters
+                  const filterAssignee = filters.assigneeId
+                    ? task.assigneeId !== filters.assigneeId
+                    : false;
 
-                const assignedToMe = !filters.assigneeId && filters.assignedToMe 
-                  ? task.assigneeId !== filters.assignedToMe 
-                  : false;
+                  const assignedToMe = !filters.assigneeId && filters.assignedToMe
+                    ? task.assigneeId !== filters.assignedToMe
+                    : false;
 
-                // Check if every word in the search key matches the task string
-                const stringTask = JSON.stringify(task).toLowerCase();
-                const searchKey = filters.search.toLowerCase();
-                const searchWords = searchKey.split(" "); 
-                const isMatch = searchWords.every((word) => stringTask.includes(word));
+                  // Check if every word in the search key matches the task string
+                  const stringTask = JSON.stringify(task).toLowerCase();
+                  const searchKey = filters.search.toLowerCase();
+                  const searchWords = searchKey.split(" ");
+                  const isMatch = searchWords.every((word) => stringTask.includes(word));
 
-                // Determine if the task should be filtered based on status
-                const filterStatus = filters.statusId !== 'na' 
-                  ? filters.statusId !== task.statusId 
-                  : false;
+                  // Determine if the task should be filtered based on status
+                  const filterStatus = filters.statusId !== 'na'
+                    ? filters.statusId !== task.statusId
+                    : false;
 
-                // Main conditions to include/exclude the task
-                if (task.parentId) return false; // Exclude subtasks
-                if (task.statusId !== col.id) return false; // Exclude tasks not in the current column
-                if (filterStatus) return false; // Exclude tasks that don't match the status filter
-                if (filterAssignee) return false; // Exclude tasks that don't match the assignee filter
-                if (assignedToMe) return false; // Exclude tasks not assigned to me when "assignedToMe" is set
-                if (!isMatch) return false; // Exclude tasks that don't match the search criteria
+                  // Main conditions to include/exclude the task
+                  if (task.parentId) return false; // Exclude subtasks
+                  
+                
+                  if(task.type == "task"){
+                    if(index == 0){
+                      if (task.todoStatusId && task.todoStatusId !== col.id) return false; // Exclude tasks not in the current column
 
-                return true; // Include task if all conditions pass
-              });
+                    } else {
+                      if (task.todoStatusId !== col.id) return false; // Exclude tasks not in the current column
+                    }
+
+                  } else {
+                    if (task.statusId !== col.id) return false; // Exclude tasks not in the current column
+                  }
+                
+                  
+                  if (filterStatus) return false; // Exclude tasks that don't match the status filter
+                  if (filterAssignee) return false; // Exclude tasks that don't match the assignee filter
+                  if (assignedToMe) return false; // Exclude tasks not assigned to me when "assignedToMe" is set
+                  if (!isMatch) return false; // Exclude tasks that don't match the search criteria
+
+                  return true; // Include task if all conditions pass
+                });
 
                 return (
                   <BoardColumn
+                    isDragDisable={isDragDisable}
                     key={col.id}
                     column={col}
                     tasks={filteredTasks}
@@ -402,18 +354,21 @@ export function KanbanBoard({ className, boardId }: { className?: string, boardI
               })}
             </SortableContext>
           </BoardContainer>
-
-
-
-          {"document" in window &&
-            createPortal(
+          
+          {createPortal(
               <DragOverlay>
                 {activeColumn && (
                   <BoardColumn
                     isOverlay
                     column={activeColumn}
                     tasks={tasks.filter(
-                      (task) => task.statusId === activeColumn.id
+                      (task) => {
+                        if(task.type == "mytodo"){
+                          task.statusId === activeColumn.id
+                        } else {
+                          task.todoStatusId === activeColumn.id
+                        }
+                      }
                     )}
                   />
                 )}
@@ -421,6 +376,7 @@ export function KanbanBoard({ className, boardId }: { className?: string, boardI
               </DragOverlay>,
               document.body
             )}
+           
         </DndContext>
       </div>
 
@@ -428,10 +384,8 @@ export function KanbanBoard({ className, boardId }: { className?: string, boardI
   );
 
   function onDragStart(event: DragStartEvent) {
-
     if (!hasDraggableData(event.active)) return;
     const data = event.active.data.current;
-    console.log(data, 'data ondragstart', '\n')
     if (data?.type === "Column") {
       setActiveColumn(data.column);
       return;
@@ -465,7 +419,7 @@ export function KanbanBoard({ className, boardId }: { className?: string, boardI
     if (isActiveATask && activeTask && currentTask) {
 
 
-      let isNewStatus = activeTask.statusId !== currentTask.statusId
+      let isNewStatus = activeTask.type == "mytodo" ? activeTask.statusId !== currentTask.statusId : activeTask.todoStatusId !== currentTask.todoStatusId
 
       if (!isNewStatus) {
         console.log('nothing to update, same status')
@@ -479,10 +433,11 @@ export function KanbanBoard({ className, boardId }: { className?: string, boardI
           activeTask.isCompleted = false
         }
       }
-
-      console.log(activeTask)
+            
+      // const updatedTaskData:CompleteTaskWithRelations = activeTask.type == "mytodo" ? activeTask : {...currentTask, todoStatusId: activeTask.todoStatusId }
+      
+      // console.log(updatedTaskData, 'updatedTaskData')
       updateTask(activeTask)
-
     }
 
 
@@ -521,9 +476,15 @@ export function KanbanBoard({ className, boardId }: { className?: string, boardI
     const activeId = active.id;
     const overId = over.id;
 
-    if (activeId === overId) return;
+    if (activeId === overId){
+      console.log('same active and over id')
+      return;
+    } 
 
-    if (!hasDraggableData(active) || !hasDraggableData(over)) return;
+    if (!hasDraggableData(active) || !hasDraggableData(over)) {
+      console.log('nodraggableData')
+      return;
+    }
 
     const activeData = active.data.current;
     const overData = over.data.current;
@@ -543,24 +504,33 @@ export function KanbanBoard({ className, boardId }: { className?: string, boardI
         const activeStatusId = activeTask.statusId
         const taskIndex = newTasks.findIndex(t => t.id == activeTask.id)
 
+        console.log(isOverATask, 'isovertask')
+        console.log(isOverAColumn, 'isOverAColumn')
         if (isOverATask) {
-          const overStatusId = overData.task.statusId
-
-          // Reorder tasks within the same status if they have the same status ID
-          // tasks = arrayMove(tasks, activeTaskIndex, overTaskIndex);
-
+          
+          let overStatusId = overData.task.type == "mytodo" ? overData.task.statusId : overData.task.todoStatusId
+          
           if (overStatusId && activeStatusId !== overStatusId) {
-            activeTask.statusId = overStatusId;
+            if(activeTask.type == "mytodo"){
+              activeTask.statusId = overStatusId;
+            } else {
+              activeTask.todoStatusId = overStatusId;
+            }
             activeTask.updatedAt = new Date();
             activeTask.updatedById = appState.currentUser.id
-
           }
 
 
         } else if (isOverAColumn) {
 
           if (activeTask && activeStatusId !== overId) {
-            activeTask.statusId = overId as string;
+            if(activeTask.type == "mytodo"){
+              activeTask.statusId = overId as string;
+
+            } else {
+              activeTask.todoStatusId = overId as string;
+            }
+
             activeTask.updatedAt = new Date();
             activeTask.updatedById = appState.currentUser.id
 

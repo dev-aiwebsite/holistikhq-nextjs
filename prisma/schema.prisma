@@ -19,6 +19,11 @@ enum Priority {
   high
 }
 
+enum TaskType {
+  task
+  mytodo
+}
+
 model User {
   id                String         @id @default(cuid())
   firstName         String
@@ -40,6 +45,7 @@ model User {
   conversations     Conversation[] @relation("conversations")
   notifications     Notification[] @relation(name: "NotificationToUser")
   readNotifications String[]
+  myTodoBoard       Board?         @relation("UserToMyTodoBoard")
 }
 
 model Clinic {
@@ -54,20 +60,23 @@ model Clinic {
 }
 
 model Board {
-  id              String         @id @default(cuid())
-  createdBy       String
-  status          String         @default("active")
-  description     String?
-  name            String
-  color           String
-  icon            String?
-  createdAt       DateTime       @default(now())
-  users           User[]         @relation(name: "BoardToUser")
-  userIds         String[]
-  BoardStatus     BoardStatus[]  @relation("BoardStatuses")
-  Automations     Automations[]  @relation("BoardAutomations")
-  taskTemplate    TaskTemplate[] @relation(name: "BoardToTaskTemplate")
-  defaultTemplate String?
+  id                String         @id @default(cuid())
+  createdBy         String
+  status            String         @default("active")
+  description       String?
+  name              String
+  color             String
+  icon              String?
+  createdAt         DateTime       @default(now())
+  users             User[]         @relation(name: "BoardToUser")
+  userIds           String[]
+  BoardStatus       BoardStatus[]  @relation("BoardStatuses")
+  Automations       Automations[]  @relation("BoardAutomations")
+  taskTemplate      TaskTemplate[] @relation(name: "BoardToTaskTemplate")
+  defaultTemplate   String?
+  myTodoUserId      String?        @unique
+  myTodoUser        User?          @relation("UserToMyTodoBoard", fields: [myTodoUserId], references: [id], onDelete: Cascade)
+  statusArrangement String[]
 }
 
 model BoardStatus {
@@ -80,13 +89,17 @@ model BoardStatus {
   position   Int
   tasks      Task[]   @relation("TaskStatus")
   isComplete Boolean  @default(false)
+  todoTask   Task[]   @relation("todoStatus")
 }
 
 model Task {
   id           String         @id @default(cuid())
   name         String
+  type         TaskType?      @default(task)
   taskLink     String?        @default("")
   description  String?
+  todoStatus   BoardStatus?   @relation("todoStatus", fields: [todoStatusId], references: [id])
+  todoStatusId String?
   isCompleted  Boolean?       @default(false)
   status       BoardStatus    @relation("TaskStatus", fields: [statusId], references: [id]) // Using BoardStatus for task status
   statusId     String

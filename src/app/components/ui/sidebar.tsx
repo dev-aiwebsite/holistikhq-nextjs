@@ -35,7 +35,7 @@ const Sidebar = ({ searchParams }: { searchParams?: { [key: string]: string } })
     const { isOpen, openDrawer, closeDrawer, content } = useDrawerContext()
     const pathname = usePathname()
     const [isCollapsed, setIsCollapsed] = useState(false)
-    const { appState } = useAppStateContext()
+    const { appState, boards } = useAppStateContext()
 
 
     function handleOpenTaskForm() {
@@ -44,7 +44,6 @@ const Sidebar = ({ searchParams }: { searchParams?: { [key: string]: string } })
 
     
     const currentUser = appState.currentUser
-    const boards = currentUser.boards
 
 
     const dialogAddTaskConfig = appState.currentUser.roles.includes('client') ? {

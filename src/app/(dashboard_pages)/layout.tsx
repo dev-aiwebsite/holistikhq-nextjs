@@ -23,6 +23,9 @@ export default async function Layout({ children }: { children: React.ReactNode }
         const queryWhere = {id: session.userId as string}
         const queryIncludes ={
             boards: {
+                where: {
+                    // myTodoUserId:null
+                },
                 include: {
                     BoardStatus: true,
                     Automations: true,

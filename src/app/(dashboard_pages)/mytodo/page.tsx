@@ -1,17 +1,16 @@
 "use client"
-import { MyBoard } from "@app/components/dndComponents/MyBoard";
+import { KanbanBoard } from "@app/components/dndComponents/KanbanBoard";
+import { MyTodoBoard } from "@app/components/dndComponents/MyTodo";
 import { useAppStateContext } from "@app/context/AppStatusContext";
 import { useMemo } from "react";
 
 export default function Page() {
-    const {appState} = useAppStateContext()
+    const {appState, myTodoBoard} = useAppStateContext()
     const currentUser = useMemo(()=>{
         return appState.currentUser
     },[appState])
-    const role = currentUser.roles
-    
     return (<>
-            my todos..
+            <MyTodoBoard className="bg-app-brown-200 board-wrapper py-4" />
         </>
     );
 

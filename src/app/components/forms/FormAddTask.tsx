@@ -39,6 +39,7 @@ type TypeFormAddTask = {
     className?: string;
     templateId?:string;
     defaultData?: TypeAddTaskdefaultData;
+    tasktype?: "mytodo" | "task";
 }
 
 const defaultFormData = {
@@ -52,8 +53,8 @@ const defaultFormData = {
     clinicId: "",
 }
 
-const FormAddTask = ({defaultData = defaultFormData, templateId, className, buttonOutside, boardId, statusId, onCancel, onSubmit, overrideSubmit = false }: TypeFormAddTask) => {
-    const { appState, setappState, addTask, boards, clinics } = useAppStateContext();
+const FormAddTask = ({tasktype, defaultData = defaultFormData, templateId, className, buttonOutside, boardId, statusId, onCancel, onSubmit, overrideSubmit = false }: TypeFormAddTask) => {
+    const { appState, setappState, addTask, boards, clinics, myTodoBoard } = useAppStateContext();
     const formRef = useRef<HTMLFormElement | null>(null)
     const [selectedTemplate, setSelectedTemplate] = useState(templateId)
     const [board_id, setBoard_id] = useState(boardId)
@@ -66,7 +67,11 @@ const FormAddTask = ({defaultData = defaultFormData, templateId, className, butt
         return mainBoards.some(b => b.id == board_id)
     },[board_id])
 
-    const board = board_id ? boards.find(b => b.id == board_id) : boards[0] 
+    const board = board_id && appState.currentUser.boards.find(b => b.id == board_id)
+    console.log(board_id, 'board_id')
+    console.log(appState, 'appState')
+    if (!board) return
+
     const templates = board?.taskTemplate
     let useDefaultValues = defaultData
     const taskId = createId()
@@ -89,7 +94,7 @@ const FormAddTask = ({defaultData = defaultFormData, templateId, className, butt
         defaultData.clinicId = appState.currentUser.clinics[0].id
     }
 
-
+    console.log(isClient, 'isClient')
 
     const pendingStatusId = useMemo(()=>{
         if(!board?.BoardStatus) return 
@@ -153,6 +158,7 @@ const FormAddTask = ({defaultData = defaultFormData, templateId, className, butt
         // Generate the ID in the frontend
         if(!data.clinicId) return
         data.id = taskId
+        data.type = tasktype
         if (onSubmit) {
             onSubmit(data)
         }
@@ -282,7 +288,8 @@ const FormAddTask = ({defaultData = defaultFormData, templateId, className, butt
                                 </div>
                             }
                             {!(isClient && isMainBoard) && board && <>
-                                <div className="FormControl tr">
+
+                               {tasktype != "mytodo" && <> <div className="FormControl tr">
                                     <span className="td label">Clinic</span>
                                     <div className="td">
                                         {clinicList && <Controller
@@ -301,7 +308,8 @@ const FormAddTask = ({defaultData = defaultFormData, templateId, className, butt
 
                                     </div>
                                 </div>
-                                {!(isClient && isMainBoard) && <div className="FormControl tr">
+
+                                <div className="FormControl tr">
                                     <span className="td label">Assignee</span>
                                     <div className="td">
                                         <Controller
@@ -316,7 +324,7 @@ const FormAddTask = ({defaultData = defaultFormData, templateId, className, butt
                                             )}
                                         />
                                     </div>
-                                </div>}
+                                </div></>}
 
                             </>}
                  

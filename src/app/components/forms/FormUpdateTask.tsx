@@ -18,7 +18,7 @@ type TypeFormUpdateTask = {
 };
 
 const FormUpdateTask = ({taskId, onSubmit }: TypeFormUpdateTask) => {
-    const { tasks, updateTask,boards } = useAppStateContext();
+    const { tasks, updateTask, boards, appState } = useAppStateContext();
     console.log(taskId, 'task FormUpdateTask')
     if(!tasks || !taskId) return
     const task = tasks.find(t => t.id == taskId)
@@ -29,11 +29,11 @@ const FormUpdateTask = ({taskId, onSubmit }: TypeFormUpdateTask) => {
     
     
     const boardId = task.status.boardId
-    const board = boards.find(b => b.id == boardId);
+    const board = appState.currentUser.boards.find(b => b.id == boardId);
     const statuses = board?.BoardStatus
     const completeStatus = statuses?.find(s => s.isComplete)
     let boardStatusOptions = [
-        { text: 'Set Status', value: '' },
+        { text: 'Set Status', value: null },
     ];
 
     if (statuses) {

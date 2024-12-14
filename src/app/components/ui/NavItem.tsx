@@ -21,7 +21,7 @@ type TypeNavItemProps = {
 const NavItem = ({isSubmenuItem,collapsible,icon,link = '#',title,actions, children}:TypeNavItemProps) => {
     const pathname = usePathname()
     const [isOpen,setIsOpen] = useState(true)
-    console.log(isOpen, 'isOpen')
+    console.log('NavItem rendered')
 
     if(!collapsible){
         return <div className={cn(isSubmenuItem ? "submenu-navitem" : "navitem")}>

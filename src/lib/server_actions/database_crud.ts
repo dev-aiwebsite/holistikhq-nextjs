@@ -508,25 +508,29 @@ export const _getConversations = async (id?: string) => {
 
 export const _getMessages = async (
     conversationId: string,
-    options?: { orderBy?: "asc" | "desc", count?: number }
+    options?: { orderBy?: "asc" | "desc"; count?: number; cursor?: string }
 ) => {
     const res = {
         success: false,
-        message: 'Not found',
-        messages: [] as Message[]
+        message: "Not found",
+        messages: [] as Message[],
     };
 
     try {
-        const { orderBy = "asc", count } = options || {};
+        const { orderBy = "desc", count, cursor } = options || {};
 
         const messages = await prisma.message.findMany({
             where: {
-                conversationId
+                conversationId,
             },
             orderBy: {
-                createdAt: orderBy
+                createdAt: orderBy,
             },
-            take: count
+            take: count,
+            skip: cursor ? 1 : 0, // Skip the cursor itself
+            ...(cursor && {
+                cursor: { id: cursor }, // Start after the cursor
+            }),
         });
 
         res.success = true;
@@ -536,7 +540,8 @@ export const _getMessages = async (
     }
 
     return res;
-}
+};
+
 
 export const _addMessage = async (data: MessageAddType) => {
     console.log(data, 'data _addMessage')

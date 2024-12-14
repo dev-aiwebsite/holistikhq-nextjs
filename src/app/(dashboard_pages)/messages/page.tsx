@@ -1,4 +1,5 @@
 import Chat from "@app/components/chat/Chat";
+import InfiniteScrollDemo from "@app/components/InfiniteScrollDemo";
 
 const MessagesPage = () => {
     return (
@@ -12,6 +13,9 @@ const MessagesPage = () => {
             </div>
             <div className="max-h-2-header-h h-full p-0">
                 <Chat />
+                
+
+            {/* <InfiniteScrollDemo /> */}
             </div>
         </>
     );

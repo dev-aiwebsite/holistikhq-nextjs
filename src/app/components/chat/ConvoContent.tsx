@@ -2,7 +2,7 @@
 
 import { _addMessage, _getMessages } from "@lib/server_actions/database_crud";
 import { Message } from "prisma/prisma-client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import ProfileAvatar from "../ui/ProfileAvatar";
 import { useAppStateContext } from "@app/context/AppStatusContext";
 import { cn } from "@lib/utils";
@@ -20,11 +20,14 @@ import InfiniteScroll from "../ui/DynamicScroller";
 import { DialogAddTask } from "../dialogs/DialogAddTask";
 import { TypeAddTaskdefaultData } from "../forms/FormAddTask";
 import { stripHtmlTags } from "@lib/helperFunctions";
+import { count } from "console";
 
 type ConvoContentType = {
     convoId: string;
 }
 
+
+type TypeMessageOption = Parameters<typeof _getMessages>[1];
 const ConvoContent = ({ convoId }: ConvoContentType) => {
     console.log('convoContent renders')
     const router = useRouter();
@@ -37,24 +40,35 @@ const ConvoContent = ({ convoId }: ConvoContentType) => {
     const [newMessage, setNewMessage] = useState<string>("")
     const [convoInfo, setConvoInfo] = useState<ConvoInfoType | null>(null)
     const [convoRecipient, setConvoRecipient] = useState<string[]>([])
-    const convo_data = appState.currentUser.conversations.find(convo => convo.id == convoId)
+    const convo_data = useMemo( ()=> (appState.currentUser.conversations.find(convo => convo.id == convoId)), [convoId])
+    const [messageCursor,setMessageCursor] = useState<string | undefined>(undefined)
+    const [isLoadingMessages,setIsLoadingMessages] = useState(false)
+    const [hasMore,setHasMore] = useState(true)
+    const [lastScrollHeight, setLastScrollheight] = useState(0)
+    const messageContainerRef = useRef<HTMLDivElement | null>(null)
+
     console.log(newMessage, 'newMessage top')
     useEffect(() => {
-        if (!convo_data){
+        
             setMessages(null)
+            setNewMessage("")
             setConvoInfo(null)
-            return 
-        }
+            setConvoRecipient([])
+            setMessageCursor(undefined)
+            setIsLoadingMessages(false)
+            setHasMore(true)
+  
+            const options:TypeMessageOption = {
+                count: 8,
+                orderBy: "desc",
+            }
 
-        _getMessages(convoId)
-            .then(res => {
-                if (res.success) {
-                    setMessages(res.messages)
-                }
-            })
-
+            if(!isLoadingMessages){
+                loadMessage(convoId, options, true)
+            }
+            
+            // scrollToBottom()
     }, [convoId])
-
 
     useEffect(() => {
 
@@ -85,6 +99,59 @@ const ConvoContent = ({ convoId }: ConvoContentType) => {
     }, [convoId,isCreateMessage])
 
 
+    console.log(messages, 'messages')
+    function scrollToBottom(){
+        if(messageContainerRef.current){
+            // messageContainerRef.current.scrollTop = 100000
+            // since using flex column reverse
+            messageContainerRef.current.scrollTop = 0
+        }
+    }
+
+    async function loadMessage(convoId: string, options?:TypeMessageOption, resetView?:boolean) {
+        setIsLoadingMessages(true)
+        console.log('loading messages')
+        const prevHeight = messageContainerRef.current?.scrollHeight
+        const res = await _getMessages(convoId, options)
+
+        if (res.success) {
+            const messageLength = res.messages.length
+            
+            if (messageLength > 0 && JSON.stringify(res.messages) !== JSON.stringify(messages)) {
+                setMessages(prevdata => {
+                    if(!prevdata) return res.messages
+                    const newMessages = res.messages.filter(
+                        newMessage => !prevdata.some(existingMessage => existingMessage.id === newMessage.id)
+                    );
+                    return [...prevdata, ...newMessages]
+                }
+                );
+            }
+            
+            if(messageLength < 10){
+                setHasMore(false)
+            }
+
+            if (messageLength > 0) {
+                setMessageCursor(res.messages[messageLength - 1].id);
+            }
+
+            setIsLoadingMessages(false)
+            if (messageContainerRef.current) {
+                // Scroll to the bottom (maintain the current scroll position)
+                const container = messageContainerRef.current;
+                const scrollHeight = container.scrollHeight
+                // container.scrollTop = container.scrollHeight - (prevHeight || 0);
+                
+            }
+
+            if(resetView){
+                scrollToBottom()
+            }
+        }
+    
+    }
+
     const userList = appState.users.filter(user => user.id != appState.currentUser.id).map(user => {
         
             let data = {
@@ -104,8 +171,6 @@ const ConvoContent = ({ convoId }: ConvoContentType) => {
     })
 
     const handleSendMessage = async () => {
-        console.log('submitting')
-        console.log(newMessage)
         if(!newMessage) return
         const newMessageId = createId()
 
@@ -130,7 +195,6 @@ const ConvoContent = ({ convoId }: ConvoContentType) => {
 
 
         if (!convo_data) {
-            console.log(newMessage,convoInfo, 'adding new conversation')
             const users = appState.users.filter(i => convoRecipient.includes(i.id) || i.id == appState.currentUser.id)
             const optimisticConversationData:ConversationCompleteType = {
                 id: convoId,
@@ -155,14 +219,12 @@ const ConvoContent = ({ convoId }: ConvoContentType) => {
                             ...prevData.currentUser, 
                             conversations: [optimisticConversationData, // Push the new conversation
                                 ...prevData.currentUser.conversations
-                                 
+                                    
                             ]
                         }
                     };
                     return updatedData;
                 });
-
-            
                 
                 ADD_MSG_TO_CONVO(newMessageData)
                 .then(res => {
@@ -183,17 +245,17 @@ const ConvoContent = ({ convoId }: ConvoContentType) => {
 
         setMessages(prevMessage => {
          
-
-            let newData = Array.isArray(prevMessage) ? [...prevMessage, newStateMessage] : [newStateMessage]
+            let newData = Array.isArray(prevMessage) ? [newStateMessage, ...prevMessage] : [newStateMessage]
             return newData
         })
         setNewMessage("")
+
 
         ADD_MSG_TO_CONVO(newMessageData)
         .then(res => {
             console.log(res, 'addmessage')
             if (res.success) {
-
+                
             } else {
 
             }
@@ -201,6 +263,9 @@ const ConvoContent = ({ convoId }: ConvoContentType) => {
         .catch(err => {
             console.log(err, 'add message')
         })
+
+
+        scrollToBottom()
     }
     
 
@@ -215,6 +280,32 @@ const ConvoContent = ({ convoId }: ConvoContentType) => {
         handleSendMessage()
     }
 
+
+    const handleMessageContainerScroll = (e:React.UIEvent<HTMLDivElement, UIEvent>) => {
+        const container = e.target as HTMLDivElement
+        if(container){
+            const loadThreshold = 0;
+            const scrollheight= container.scrollHeight
+            const containerHeight = container.clientHeight
+            const currentScrollPos = container.scrollTop
+            const isAtBottom = currentScrollPos + containerHeight >= (scrollheight - 25)
+            
+            console.log(isAtBottom, 'isAtBottom')
+            console.log(currentScrollPos, 'currentScrollPos')
+
+            if(currentScrollPos <= -Math.abs(scrollheight - containerHeight - 5)){
+                console.log('fetching more messages')
+                if(!isLoadingMessages){
+                    const options:TypeMessageOption = {
+                        count: 8,
+                        orderBy: "desc",
+                        cursor:messageCursor
+                    }
+                    loadMessage(convoId, options)
+                }
+            }
+        }
+    }
     return (<>
         <div className="header-h border-b border-gray-200 flex flex-row items-center p-2 gap-2">
             {!convoInfo && <>
@@ -250,7 +341,7 @@ const ConvoContent = ({ convoId }: ConvoContentType) => {
             </div>}
         </div>
         <div className="flex-1 flex flex-col relative" chat-widget="1">
-            <div className="pb-16 flex-1 max-h-3-header-h">
+            <div onScroll={(e)=>handleMessageContainerScroll(e)} ref={messageContainerRef} className="pb-16 flex flex-col-reverse flex-1 max-h-3-header-h scroll-smooth">
                 {messages && messages.map(m => <MessageLayout key={m.id} message={m} />)}
             </div>
             <div className="w-full bg-white absolute bottom-0 mt-auto p-4 flex flex-row items-end gap-1">

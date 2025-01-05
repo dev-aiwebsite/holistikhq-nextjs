@@ -2,7 +2,7 @@ import { useForm, Controller } from "react-hook-form";
 import { DatePickerWithPresets } from "@app/components/ui/datepicker";
 import { SelectScrollable } from "../ui/select";
 import RichTextEditor from "../RichTextEditor";
-import { useRef} from "react";
+import { useEffect, useMemo, useRef} from "react";
 import { useAppStateContext } from "@app/context/AppStatusContext";
 import { _updateTask } from "@lib/server_actions/database_crud";
 import { TaskAddType, TaskAddTypeComplete } from "@lib/types";
@@ -20,14 +20,20 @@ type TypeFormUpdateTask = {
 const FormUpdateTask = ({taskId, onSubmit }: TypeFormUpdateTask) => {
     const { tasks, updateTask, boards, appState } = useAppStateContext();
     console.log(taskId, 'task FormUpdateTask')
-    if(!tasks || !taskId) return
-    const task = tasks.find(t => t.id == taskId)
-    if(!task) return
+    
+    const task = useMemo(()=> {
+        if(!tasks || !taskId) return null
+         const task = tasks.find(t => t.id == taskId)
+         return task
+    }, [tasks, taskId])
+
+
+  
     console.log(task, 'FormUpdateTask task')
+
+    
     const formRef = useRef<HTMLFormElement | null>(null)
     const subtasks = task.subtasks
-    
-    
     const boardId = task.status.boardId
     const board = appState.currentUser.boards.find(b => b.id == boardId);
     const statuses = board?.BoardStatus
@@ -43,7 +49,6 @@ const FormUpdateTask = ({taskId, onSubmit }: TypeFormUpdateTask) => {
         }));
     }
 
-    console.log(boardId, 'boardId')
     const defaultValues = task ? {
         id: task.id,
         name: task.name,
@@ -58,6 +63,24 @@ const FormUpdateTask = ({taskId, onSubmit }: TypeFormUpdateTask) => {
     const form = useForm({
         defaultValues,
     });
+
+    const {reset} = form
+    useEffect(() => {
+        if (task) {
+            reset({
+                id: task.id,
+                name: task.name,
+                description: task.description,
+                statusId: task.statusId,
+                priority: task.priority,
+                dueDate: task.dueDate as Date | undefined,
+                assigneeId: task.assigneeId,
+                taskLink: task.taskLink,
+            });
+        } else {
+            reset({});
+        }
+    }, [task, reset]);
 
     const { isDirty } = form.formState;
 
@@ -84,10 +107,7 @@ const FormUpdateTask = ({taskId, onSubmit }: TypeFormUpdateTask) => {
         }
     }
 
- 
 
-    console.log(defaultValues, 'defaultValues')
-    console.log(boardStatusOptions, 'boardStatusOptions')
     return (
         <div className="space-y-4">
             <form ref={formRef} onSubmit={form.handleSubmit(handleOnSubmit)} className="formAddTask space-y-4">

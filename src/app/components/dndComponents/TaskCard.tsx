@@ -87,7 +87,7 @@ export function TaskCard({isDragDisable, task, isOverlay, className, onClick }: 
     <Card
       ref={setNodeRef}
       style={style}
-      className={`sidedrawer-trigger ${variants({
+      className={`taskdrawer-trigger ${variants({
         dragging: isOverlay ? "overlay" : isDragging ? "over" : undefined,
       })} ${className}`}
       {...attributes}

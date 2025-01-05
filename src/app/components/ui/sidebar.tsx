@@ -1,55 +1,34 @@
 "use client"
-import { ChartSplineIcon, ChevronFirst, ListTodo, MessageSquareWarning, NotebookPen, Plus, SquareKanbanIcon, UserRoundPlus } from "lucide-react";
+import { ChartSplineIcon, ChevronFirst, MessageSquareWarning, NotebookPen, Plus, SquareKanbanIcon, Trash, UserRoundPlus } from "lucide-react";
 import Image from "next/image";
-import { Key, ReactNode, useState } from "react";
+import { ReactNode, useState } from "react";
 import { DashboardIcon } from "@radix-ui/react-icons";
 import { cn } from "@lib/utils";
-
-import {
-    Accordion,
-    AccordionContent,
-    AccordionItem,
-    AccordionTrigger,
-} from "@app/components/ui/accordion"
-import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { AddTaskIcon, MessageIcon } from "public/svgs/svgs";
-import { Avatar, AvatarFallback, AvatarImage } from "src/components/ui/avatar";
+import { MessageIcon } from "public/svgs/svgs";
 import LogoutBtn from "./LogoutBtn";
-import { useDrawerContext } from "@app/context/DrawerContext";
-import { DialogTrigger } from "src/components/ui/dialog";
 import { useAppStateContext } from "@app/context/AppStatusContext";
-import { Board } from "@prisma/client";
 import { getInitials } from "@lib/helperFunctions";
 import ProfileAvatar from "./ProfileAvatar";
-import Dialog from "../dialogs/Dialog";
-import AddBoardForm from "../forms/FormAddBoard";
-import { Button } from "./button";
-import FormAddTask from "../forms/FormAddTask";
 import { DialogAddTask } from "../dialogs/DialogAddTask";
 import { DialogAddBoard } from "../dialogs/DialogAddBoard";
 import NavItem from "./NavItem";
+import DropDownMenu from "../DropDownMenu";
+import { mainBoards } from "@lib/const";
 
 
 const Sidebar = ({ searchParams }: { searchParams?: { [key: string]: string } }) => {
-    const { isOpen, openDrawer, closeDrawer, content } = useDrawerContext()
-    const pathname = usePathname()
+
     const [isCollapsed, setIsCollapsed] = useState(false)
-    const { appState, boards } = useAppStateContext()
+    const { appState, boards, deleteBoard } = useAppStateContext()
 
-
-    function handleOpenTaskForm() {
-        openDrawer()
-    }
-
-    
     const currentUser = appState.currentUser
 
 
     const dialogAddTaskConfig = appState.currentUser.roles.includes('client') ? {
         text: 'Request Task'
     } : undefined
-    
+
 
     return (
         <div className={cn("sidebar bg-app-green-400 flex flex-col flex-nowrap", isCollapsed && 'collapsed')}>
@@ -69,17 +48,41 @@ const Sidebar = ({ searchParams }: { searchParams?: { [key: string]: string } })
             </button>
 
             <ul className="navlist">
-                <NavItem link="/dashboard" title={"Dashboard"} icon={<DashboardIcon/>} />
-                <NavItem link="/board" title={"Boards"} icon={<SquareKanbanIcon />} collapsible>
+                <NavItem link="/dashboard" title={"Dashboard"} icon={<DashboardIcon />} />
+                <NavItem link="/board" title={"Boards"} icon={<SquareKanbanIcon />} actions={<DialogAddBoard classNameIcon="bg-transparent" />} collapsible>
                     {boards && boards.map((board) => (
-                        <NavItem isSubmenuItem key={board.id} link={`/board/${board.id}`} title={board.name} icon={<BoardIcon icon={board.icon} name={board.name} color={board.color}/>} />
-                       
+
+                        <NavItem
+                            isSubmenuItem
+                            key={board.id}
+                            link={`/board/${board.id}`}
+                            title={board.name}
+                            icon={<BoardIcon icon={board.icon} name={board.name} color={board.color} />}
+                            actions={
+                                !mainBoards.some((mainBoard) => mainBoard.id === board.id) ? (
+                                    <DropDownMenu
+                                        classNameTrigger="h-6 w-6 text-xs"
+                                        side="bottom"
+                                        items={[
+                                            {
+                                                icon: <Trash />,
+                                                text: "Delete",
+                                                onClick: () => {
+                                                    deleteBoard(board.id);
+                                                },
+                                            },
+                                        ]}
+                                    />
+                                ) : undefined
+                            }
+                        />
+
                     ))}
                 </NavItem>
-                {currentUser.roles.includes('client') && <NavItem link="/mytodo" title={"My To Do"} icon={<NotebookPen/>} />}
-                <NavItem link="/messages" title={"Messages"} icon={<MessageIcon/>} />
-                <NavItem link="/analytics" title={"Analytics"} icon={<ChartSplineIcon/>} />
-                {currentUser.roles.includes('admin') && <NavItem link="/users" title={"Users"} icon={<UserRoundPlus/>} />}
+                {currentUser.roles.includes('client') && <NavItem link="/mytodo" title={"My To Do"} icon={<NotebookPen />} />}
+                <NavItem link="/messages" title={"Messages"} icon={<MessageIcon />} />
+                <NavItem link="/analytics" title={"Analytics"} icon={<ChartSplineIcon />} />
+                {currentUser.roles.includes('admin') && <NavItem link="/users" title={"Users"} icon={<UserRoundPlus />} />}
             </ul>
             <div className="mt-auto bg-app-blue-500">
                 <ul className="space-y-2 p-[calc(var(--sidebar-padding)_/_2)]">
@@ -119,27 +122,27 @@ const Sidebar = ({ searchParams }: { searchParams?: { [key: string]: string } })
 
 export default Sidebar;
 
-const BoardIcon = ({name,color,icon}:{name:string,color:string,icon?:ReactNode}) => {
-    
+const BoardIcon = ({ name, color, icon }: { name: string, color: string, icon?: ReactNode }) => {
+
     // const istext = icon ? typeof(icon) == "string" : false
     const istext = true
     let text = ""
     // if(!icon){
-        text = name[0]
+    text = name[0]
     // } else if(istext){
-        
-            // text = (icon as string).split(" ").map(i => i[0]).slice(0,2).join("")
+
+    // text = (icon as string).split(" ").map(i => i[0]).slice(0,2).join("")
     // }
     return <>
-        <span style={{backgroundColor: `${color}` }} className="rounded flex items-center justify-center aspect-square text-white">
+        <span style={{ backgroundColor: `${color}` }} className="rounded flex items-center justify-center aspect-square text-white">
             {istext ?
                 <span className="text-sm">
-                    {text}        
+                    {text}
                 </span>
 
                 : icon
             }
         </span>
-    
+
     </>
 }

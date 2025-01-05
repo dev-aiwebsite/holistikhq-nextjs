@@ -2,9 +2,10 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from "react";
 
 type ContentType = ReactNode;
-type OpenDrawerType = (newContent?: ContentType, newHeaderItems?: ContentType, onClose?: () => void) => void;
+type OpenDrawerType = (taskid:string) => void;
 
-interface DrawerContextProps {
+interface TaskDrawerContextProps {
+  taskId:string | null;
   isOpen: boolean;
   openDrawer: OpenDrawerType;
   closeDrawer: () => void;
@@ -15,21 +16,27 @@ interface DrawerContextProps {
   getOnCloseHandlers: () => (() => void)[]; // Add this
 }
 
-const DrawerContext = createContext<DrawerContextProps | undefined>(undefined);
+const TaskDrawerContext = createContext<TaskDrawerContextProps | undefined>(undefined);
 
 export const DrawerProvider = ({ children }: { children: ReactNode }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [content, setContent] = useState<ReactNode>(null);
   const [headerItems, setHeaderItems] = useState<ReactNode>(null);
   const [onCloseHandlers, setOnCloseHandlers] = useState<(() => void)[]>([]);
+  const [taskId,setTaskId] = useState<string | null>(null)
 
-  const openDrawer: OpenDrawerType = (newContent, newHeaderItems, onClose) => {
-    if (newContent) {
-      setContent(newContent);
-      setHeaderItems(newHeaderItems);
-    }
-    if (onClose) {
-      setOnCloseHandlers((prev) => [...prev, onClose]);
+  console.log('TaskDrawerContext rendering...')
+  console.log(taskId)
+  const openDrawer: OpenDrawerType = (taskid) => {
+    // if (newContent) {
+    //   setContent(newContent);
+    //   setHeaderItems(newHeaderItems);
+    // }
+    // if (onClose) {
+    //   setOnCloseHandlers((prev) => [...prev, onClose]);
+    // }
+    if(taskid){
+      setTaskId(taskid)
     }
     setIsOpen(true);
   };
@@ -70,8 +77,9 @@ export const DrawerProvider = ({ children }: { children: ReactNode }) => {
   }, [isOpen, onCloseHandlers]);
 
   return (
-    <DrawerContext.Provider 
+    <TaskDrawerContext.Provider 
       value={{ 
+        taskId,
         isOpen, 
         openDrawer, 
         closeDrawer, 
@@ -83,13 +91,13 @@ export const DrawerProvider = ({ children }: { children: ReactNode }) => {
       }}
     >
       {children}
-    </DrawerContext.Provider>
+    </TaskDrawerContext.Provider>
   );
 };
 
 
-export const useDrawerContext = () => {
-  const context = useContext(DrawerContext);
+export const useTaskDrawerContext = () => {
+  const context = useContext(TaskDrawerContext);
   if (!context) {
     throw new Error("useDrawer must be used within a DrawerProvider");
   }

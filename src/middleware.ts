@@ -27,7 +27,6 @@ export async function middleware(req: NextRequest) {
   ]
   const userRoles = token.roles || [];
 
-
   if(loginUserNotAllowed.includes(pathname)){
     return NextResponse.redirect(new URL("/dashboard", req.url));
   }

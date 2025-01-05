@@ -53,7 +53,7 @@
     --app-green-500: #6b953c;
     --app-blue-500: #1a2e5e;
     --sidebar-padding: 2rem;
-    --sideDrawer-width: min(750px, 98vw);
+    --taskDrawer-width: min(750px, 98vw);
     
     
   }
@@ -118,14 +118,14 @@
     @apply text-xs py-1.5 px-2;
   }
 
-  .sideDrawer {
+  .taskDrawer {
     @apply translate-x-full ;
   }
-  .sideDrawer.shown {
+  .taskDrawer.shown {
     @apply translate-x-0;
   }
 
-  .sideDrawer .formAddTask .label {
+  .taskDrawer .formAddTask .label {
     @apply text-sm w-36;
   }
 
@@ -186,8 +186,8 @@
 
  
  
-.sideDrawer {
-  width: var(--sideDrawer-width);
+.taskDrawer {
+  width: var(--taskDrawer-width);
 }
 
 .board-wrapper {
@@ -196,8 +196,8 @@
   height: calc(100dvh - var(--header-h) - 10rem);
 }
 
-.holistikhq:has(.sideDrawer.shown) .board-wrapper {
-  padding-right: calc(var(--sideDrawer-width) + 10px);
+.holistikhq:has(.taskDrawer.shown) .board-wrapper {
+  padding-right: calc(var(--taskDrawer-width) + 10px);
 }
 
 .sidebar {
@@ -471,4 +471,13 @@ button[disabled] {
 .navitem .navitem-trigger .icon svg {
   height: 100%;
   width: 100%;
+}
+
+[role="menuitem"] svg {
+  width: 1.1em !important;
+  height: 1.1em !important;
+}
+
+[role="menuitem"] span {
+  margin-bottom: -2.5px;
 }

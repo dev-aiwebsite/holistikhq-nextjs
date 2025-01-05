@@ -1,21 +1,17 @@
 "use client"
 import { SortableContext, useSortable } from "@dnd-kit/sortable";
-import { useDndContext, type UniqueIdentifier } from "@dnd-kit/core";
+import { useDndContext } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
-import { Dispatch, SetStateAction, useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { cva } from "class-variance-authority";
-import { GripVertical } from "lucide-react";
 import { Button } from "@app/components/dndComponents/ui/button";
 import { Card, CardHeader, CardContent } from "@app/components/dndComponents/ui/card";
 import { ScrollArea, ScrollBar } from "@app/components/dndComponents/ui/scroll-area";
 import { TaskCard } from "@app/components/dndComponents/TaskCard";
 import { cn } from "@lib/utils";
-import { BoardStatus, Task } from "@prisma/client";
-import { useDrawerContext } from "@app/context/DrawerContext";
+import { BoardStatus} from "@prisma/client";
+import { useTaskDrawerContext } from "@app/context/TaskDrawerContext";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import FormUpdateTask from "../forms/FormUpdateTask";
-import { CompleteTaskWithRelations, TypeTask } from "@lib/types";
-import MarkAsCompleteBtn from "../task/MarkAsCompleteBtn";
 
 
 export type Column = BoardStatus
@@ -35,7 +31,7 @@ interface BoardColumnProps {
 }
 
 export function BoardColumn({isDragDisable, column, tasks, isOverlay }: BoardColumnProps) {
-  const {isOpen, openDrawer, getOnCloseHandlers, addOnCloseHandler, closeDrawer} = useDrawerContext()
+  const {addOnCloseHandler, closeDrawer} = useTaskDrawerContext()
   const router = useRouter()
   const searchParams = useSearchParams();
   const pathname = usePathname()
@@ -91,9 +87,6 @@ export function BoardColumn({isDragDisable, column, tasks, isOverlay }: BoardCol
   }
 
   const taskCardClickHandler = (taskId:string)=>{
-    // const headerItem = <MarkAsCompleteBtn taskId={taskId} />
-  
-    // openDrawer(<FormUpdateTask onSubmit={() => onUpdateSubmit()}  key={taskId}  taskId={taskId}/>, headerItem)
     router.push(`${pathname}?t=${taskId}`);
     addOnCloseHandler(removeParameterTask)
     

@@ -39,7 +39,7 @@ import { CompleteTaskWithRelations } from "@lib/types";
 import { DialogAddTask } from "../dialogs/DialogAddTask";
 import { DialogTaskTemplate } from "../dialogs/DialogTaskTemplate";
 import FormUpdateTask from "../forms/FormUpdateTask";
-import { useDrawerContext } from "@app/context/DrawerContext";
+import { useTaskDrawerContext } from "@app/context/TaskDrawerContext";
 import { CardContent, CardHeader, CardTitle } from "../ui/card";
 import UserList from "../UserList";
 import { SelectScrollable } from "../ui/select";
@@ -56,7 +56,7 @@ export function MyTodoBoard({ className }:MyTodoBoardProps ) {
   const Router = useRouter()
 
   const { appState, setappState, tasks, setTasks, updateTask, boards, myTodoBoard, setKanbanData } = useAppStateContext()
-  const { isOpen, openDrawer, getOnCloseHandlers, addOnCloseHandler, closeDrawer } = useDrawerContext()
+  const { openDrawer, closeDrawer } = useTaskDrawerContext()
 
   const boardData = useMemo(() => {
       return myTodoBoard[0]
@@ -108,13 +108,7 @@ export function MyTodoBoard({ className }:MyTodoBoardProps ) {
 
   useEffect(() => {
     if (!showTaskId) return
-    if (!tasks) return
-    let task = tasks.find(t => t.id == showTaskId)
-    if(!task) return
-
-    const headerItem = <MarkAsCompleteBtn task={task} />
-    openDrawer(<FormUpdateTask onSubmit={() => closeDrawer()} key={showTaskId} task={task} taskId={showTaskId} />, headerItem)
-
+    openDrawer(showTaskId)
   }, [showTaskId, tasks])
 
   const pickedUpTaskColumn = useRef<string | null>(null);

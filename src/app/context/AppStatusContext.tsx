@@ -2,7 +2,7 @@
 import {createContext, Dispatch, SetStateAction, useContext, useState } from "react";
 import {Board, BoardStatus, Clinic, Conversation, Message, Task, User} from "prisma/prisma-client"
 import { BoardAddType, ClinicAddType, CompleteTaskWithRelations, ConversationCompleteType, TaskAddTypeComplete, TypeBoardComplete, TypeClinicComplete, TypeClinicWithUsers, TypeCurrentUserComplete, TypeTask, TypeTaskWithSubtasks, UserAddType } from "@lib/types";
-import { _addCLinic, _addNotification, _addTask, _addUser, _updateTask } from "@lib/server_actions/database_crud";
+import { _addCLinic, _addNotification, _addTask, _addUser, _deleteBoard, _deleteTask, _updateTask } from "@lib/server_actions/database_crud";
 import { createId } from "@paralleldrive/cuid2";
 import { ADD_BOARD } from "@lib/server_actions/appCrud";
 import { error } from "console";
@@ -38,7 +38,9 @@ type KanbanDataPropsType = {
     addClinic:(data:ClinicAddType) => void;
     updateTask: (newTask:TypeTask) => void;
     addTask: (taskData:TaskAddTypeComplete) => void;
+    deleteTask: (taskid:string) => void;
     addBoard: (data:BoardAddType, onSuccess?:(res:Awaited<ReturnType<typeof ADD_BOARD>>)=>void) => void;
+    deleteBoard: (boardId:string) => void;
     setKanbanData: (data:KanbanDataPropsType)=>void;
     setTasks:Dispatch<SetStateAction<TypeTask[] | null>>
     updateBoard:(boardId:string,data:Partial<TypeBoardComplete>)=>void;
@@ -181,6 +183,32 @@ export default function AppStateContextProvider({children, data}:AppStateContext
             console.error(error)
         }
     }
+    const deleteTask = async (taskId: string) => {
+        const userConfirmed = confirm(`Are you sure you want to delete this task ${taskId}? This action cannot be undone.`);
+
+        if (!userConfirmed) {
+            return; // If the user cancels, do nothing
+        }
+
+        const res = await _deleteTask(taskId);
+    
+        try {
+            if (res.success) {
+                setTasks((prevdata) => {
+                    if (!prevdata) return prevdata; // If there are no tasks, return the same state
+                    return prevdata.filter((task) => task.id !== taskId); // Remove the deleted task
+                });
+    
+                alert("Task deleted successfully!");
+            } else {
+                alert("Deleting task failed, something went wrong");
+                console.log(res);
+            }
+        } catch (error) {
+            alert("Deleting task failed, something went wrong");
+            console.error(error);
+        }
+    };
     const addUser = async (data:UserAddType) => {
         const res = await _addUser(data)
         const newUser = res.user
@@ -238,17 +266,8 @@ export default function AppStateContextProvider({children, data}:AppStateContext
             if(res.success){
 
                 if (!res.board) return;
-                setappState((prevState) => {
-                    
-                    const updatedState = {
-                        ...prevState,
-                        currentUser: {
-                            ...prevState.currentUser,
-                            
-                            boards: [...prevState.currentUser.boards, res.board!],
-                        },
-                    };
-                    return updatedState;
+                setBoards((prevState) => {
+                    return [...prevState, res.board!]
                 });
 
                 if(onSuccess){
@@ -270,6 +289,36 @@ export default function AppStateContextProvider({children, data}:AppStateContext
 
         
     }
+    const deleteBoard = async (
+        boardId: string,
+        onSuccess?: (res: Awaited<ReturnType<typeof _deleteBoard>>) => void
+    ) => {
+        if(!boardId) return
+        const res = await _deleteBoard(boardId); // Use the backend _deleteBoard function
+    
+        try {
+            if (res.success) {
+                // Update the application state by removing the deleted board
+                setBoards((prevState) => {
+                    return prevState.filter(
+                        (board) => board.id !== boardId
+                    );
+                });
+    
+                // Call the onSuccess callback if provided
+                if (onSuccess) {
+                    onSuccess(res);
+                }
+            } else {
+                console.error(res.message, 'appstate deleteBoard');
+            }
+        } catch (error) {
+            console.error(error, 'appstate deleteBoard');
+        }
+    
+        return res;
+    };
+    
 
     function updateBoard(boardId:string,newData:Partial<TypeBoardComplete>){
         if(!boardId) return
@@ -318,7 +367,7 @@ export default function AppStateContextProvider({children, data}:AppStateContext
     }
       
     return (
-        <AppStateContext.Provider value={{myTodoBoard, addUser, setKanbanData, boards,tasks, boardStatuses, appState, setappState, updateTask, addTask, setTasks, addBoard, updateBoard, clinics }}>
+        <AppStateContext.Provider value={{myTodoBoard, addUser, setKanbanData, boards,tasks, boardStatuses, appState, setappState, updateTask, addTask, deleteTask, setTasks, addBoard, updateBoard, deleteBoard, clinics }}>
             {children}
         </AppStateContext.Provider>
     );

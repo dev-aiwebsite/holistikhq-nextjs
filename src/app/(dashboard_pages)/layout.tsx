@@ -1,13 +1,12 @@
 "use server"
 import DashboardLayout from "@app/components/layouts/dashboardLayout";
-import SideDrawer from "@app/components/ui/sidedrawer";
+import TaskDrawer from "@app/components/ui/TaskDrawer";
 import AppStateContextProvider, { AppStateDataType } from "@app/context/AppStatusContext";
-import { DrawerProvider } from "@app/context/DrawerContext";
+import { DrawerProvider } from "@app/context/TaskDrawerContext";
 import { auth } from "@lib/auth/auth";
-import { _deleteConversation, _getClinics, _getUsers } from "@lib/server_actions/database_crud";
-import { TypeCurrentUserComplete, TypeUserWithBoard } from "@lib/types";
+import {_getClinics, _getUsers } from "@lib/server_actions/database_crud";
+import { TypeCurrentUserComplete } from "@lib/types";
 import { User } from "@prisma/client";
-import prisma from "@lib/db";
 
 
 export default async function Layout({ children }: { children: React.ReactNode }) {
@@ -100,7 +99,7 @@ export default async function Layout({ children }: { children: React.ReactNode }
             <DrawerProvider>
                     <DashboardLayout>
                         {children}
-                        <SideDrawer />
+                        <TaskDrawer />
                     </DashboardLayout>
             </DrawerProvider>
         </AppStateContextProvider>

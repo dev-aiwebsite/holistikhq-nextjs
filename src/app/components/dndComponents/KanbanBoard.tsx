@@ -39,7 +39,7 @@ import { CompleteTaskWithRelations } from "@lib/types";
 import { DialogAddTask } from "../dialogs/DialogAddTask";
 import { DialogTaskTemplate } from "../dialogs/DialogTaskTemplate";
 import FormUpdateTask from "../forms/FormUpdateTask";
-import { useDrawerContext } from "@app/context/DrawerContext";
+import { useTaskDrawerContext } from "@app/context/TaskDrawerContext";
 import { CardContent, CardHeader, CardTitle } from "../ui/card";
 import UserList from "../UserList";
 import { SelectScrollable } from "../ui/select";
@@ -55,42 +55,38 @@ type KanbanBoardProps =
 
 export function KanbanBoard({ className, boardId, boardType = "board" }:KanbanBoardProps ) {
   const Router = useRouter()
+  const searchParams = useSearchParams()
 
   const { appState, setappState, tasks, setTasks, updateTask, boards, myTodoBoard, setKanbanData } = useAppStateContext()
-  const { isOpen, openDrawer, getOnCloseHandlers, addOnCloseHandler, closeDrawer } = useDrawerContext()
-  const boardData = useMemo(() => {
-    if(boardType == "mytodo"){
-      return myTodoBoard[0]
-    }
-    return boards.find((board) => board.id === boardId)
-
-  }, [boards, boardId, myTodoBoard]);
-
-  boardId = boardData.id
-  
-const tempColId = useMemo(()=> (createId()),[boardId])
-
-  const statusArrangeMent = boardData?.statusArrangement
-  const orderedBoardStatuses = statusArrangeMent && boardData?.BoardStatus?.toSorted((a,b)=>{ 
-    
-    return statusArrangeMent?.indexOf(a.id) - statusArrangeMent?.indexOf(b.id)
-  })
-
-
-  const defaultCol:BoardStatus = {...(boardData?.BoardStatus?.[0] ?? {}),
-  id: tempColId,
-  name: "My To Do's"}
-  
-  const boardStatuses = boardType == "mytodo" ? [defaultCol, ...(orderedBoardStatuses ?? [])] : orderedBoardStatuses || [] ;
-  
-  const [columns, setColumns] = useState<Column[]>(boardStatuses);
+  const { openDrawer, closeDrawer } = useTaskDrawerContext()
   const [filters, setFilters] = useState({
     search: "",
     assigneeId: "",
     statusId: "na",
     assignedToMe: "",
   })
-  const searchParams = useSearchParams()
+  const [columns, setColumns] = useState<Column[]>([]);
+  const boardData = useMemo(() => {
+    const newBoardData = boards.find((board) => board.id === boardId)
+    if(!newBoardData) return null
+    const statusArrangeMent = newBoardData.statusArrangement
+    const orderedBoardStatuses = statusArrangeMent && newBoardData.BoardStatus?.toSorted((a,b)=>{ 
+      
+      return statusArrangeMent?.indexOf(a.id) - statusArrangeMent?.indexOf(b.id)
+    })
+  
+    const boardStatuses = orderedBoardStatuses || [] ;
+    setColumns(boardStatuses)
+    return newBoardData
+
+  }, [boards, boardId, myTodoBoard]);
+
+  boardId = boardData?.id
+
+ 
+  
+ 
+  
   const showTaskId = searchParams.get('t')
   const columnsId = columns.map(c => c.id)
   const completeStatus = boardData?.BoardStatus?.find(s => s.isComplete)
@@ -154,8 +150,7 @@ const tempColId = useMemo(()=> (createId()),[boardId])
     if (!tasks) return
     let task = tasks.find(t => t.id == showTaskId)
     if(!task) return
-    const headerItem = <MarkAsCompleteBtn task={task} />
-    openDrawer(<FormUpdateTask onSubmit={() => closeDrawer()} key={showTaskId} task={task} taskId={showTaskId} />, headerItem)
+    openDrawer(showTaskId)
 
   }, [showTaskId, tasks])
 
@@ -580,9 +575,7 @@ const tempColId = useMemo(()=> (createId()),[boardId])
         }
       }
       
-      const newStatusId = activeTask.statusId == tempColId ? "" : activeTask.statusId
-      console.log(newStatusId, 'newStatusId')
-      console.log(tempColId, 'tempColId')
+      const newStatusId = activeTask.statusId
 
       const updatedTaskData:CompleteTaskWithRelations = boardType == "board" ? activeTask : activeTask.type == "mytodo" ? {...activeTask,statusId:newStatusId} : {...currentTask,
         todoStatusId: newStatusId

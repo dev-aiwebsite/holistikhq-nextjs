@@ -188,6 +188,27 @@ export const _addTask = async (task: TaskAddTypeComplete) => {
     return res;
 }
 
+export const _deleteTask = async (taskId: string) => {
+    const res = {
+        success: false,
+        message: '',
+    };
+
+    try {
+        // Delete the task by ID
+        const deletedTask = await prisma.task.delete({
+            where: { id: taskId },
+        });
+
+        res.success = true;
+        res.message = `Task ${deletedTask.name} deleted successfully.`;
+    } catch (error) {
+        res.message = `Failed to delete task: ${handleError(error)} ${taskId}:task`; // Use handleError to log the error
+    }
+
+    return res;
+};
+
 export const _updateTask = async (taskId: string, updatedTask: Partial<Task>) => {
     const res = {
         success: false,
@@ -294,6 +315,40 @@ export const _addBoard = async (data: BoardAddType) => {
     console.log('server _addBoard', res)
     return res;
 }
+
+export const _deleteBoard = async (boardId: string) => {
+    const res = {
+        success: false,
+        message: '',
+    };
+
+    try {
+        // Check if the board exists
+        const existingBoard = await prisma.board.findUnique({
+            where: { id: boardId },
+        });
+
+        if (!existingBoard) {
+            res.message = `Board with ID ${boardId} does not exist.`;
+            return res;
+        }
+
+        // Delete the board
+        await prisma.board.delete({
+            where: { id: boardId },
+        });
+
+        res.success = true;
+        res.message = `Board with ID ${boardId} deleted successfully.`;
+    } catch (error) {
+        res.message = `Failed to delete board: ${handleError(error)}`; // Use handleError to get the error message
+    }
+
+    console.log('server _deleteBoard', res);
+    return res;
+};
+
+
 
 // Get all boards
 export const _getBoards = async (boardId?: string | string[]) => {
